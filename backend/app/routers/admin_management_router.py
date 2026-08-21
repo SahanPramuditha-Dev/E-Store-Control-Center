@@ -394,8 +394,12 @@ def issue_license(req: LicenseIssueRequest, db: Session = Depends(get_db), admin
     shop = db.query(Shop).filter(Shop.id == req.shop_id).first()
     pkg = db.query(Package).filter(Package.code == req.package_code.upper()).first()
 
-    if not tenant or not shop or not pkg:
-        raise HTTPException(status_code=404, detail="Tenant, Shop, or Package not found")
+    if not tenant:
+        raise HTTPException(status_code=404, detail=f"Tenant with ID {req.tenant_id} not found")
+    if not shop:
+        raise HTTPException(status_code=404, detail=f"Shop with ID {req.shop_id} not found")
+    if not pkg:
+        raise HTTPException(status_code=404, detail=f"Package with code '{req.package_code}' not found")
 
     import uuid
     key_prefix = f"ISTORE-{pkg.code}"
