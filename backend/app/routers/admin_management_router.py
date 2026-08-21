@@ -476,6 +476,81 @@ def issue_license(req: LicenseIssueRequest, db: Session = Depends(get_db), admin
         "expires_at": license_obj.expires_at.isoformat() if license_obj.expires_at else None
     }
 
+@router.post("/licenses/{license_id}/renew")
+def renew_license(
+    license_id: int,
+    req: LicenseRenewRequest,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin)
+):
+    lic = db.query(License).filter(License.id == license_id).first()
+    if not lic:
+        raise HTTPException(status_code=404, detail="License not found")
+
+    now = datetime.now(timezone.utc)
+    base_date = lic.expires_at if (lic.expires_at and lic.expires_at > now) else now
+    lic.expires_at = base_date + timedelta(days=req.validity_days)
+    lic.status = LicenseStatus.ACTIVE
+
+    event = LicenseEvent(
+        license_id=lic.id,
+        event_type=LicenseEventType.RENEWED,
+        from_state=lic.status.value,
+        to_state=LicenseStatus.ACTIVE.value,
+        actor=admin.username,
+        notes=f"Renewed for {req.validity_days} days. New expiry: {lic.expires_at.isoformat()}"
+    )
+    db.add(event)
+
+    if req.payment_amount and req.payment_amount > 0:
+        payment = Payment(
+            tenant_id=lic.tenant_id,
+            shop_id=lic.shop_id,
+            license_id=lic.id,
+            amount_lkr=req.payment_amount,
+            payment_type=PaymentType.RENEWAL,
+            payment_method=req.payment_method or "BANK_TRANSFER",
+            reference_no=req.payment_reference
+        )
+        db.add(payment)
+
+    log_admin_action(db, admin.id, "RENEW_LICENSE", "LICENSE", lic.id, {"validity_days": req.validity_days, "payment": req.payment_amount})
+    db.commit()
+    db.refresh(lic)
+    return {
+        "success": True,
+        "message": f"License renewed successfully for {req.validity_days} days.",
+        "expires_at": lic.expires_at.isoformat()
+    }
+
+@router.post("/licenses/{license_id}/reset-machine")
+def reset_machine(
+    license_id: int,
+    req: MachineResetRequest,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin)
+):
+    lic = db.query(License).filter(License.id == license_id).first()
+    if not lic:
+        raise HTTPException(status_code=404, detail="License not found")
+
+    for m in lic.machines:
+        m.status = MachineStatus.RESET
+
+    lic.replacement_count += 1
+    event = LicenseEvent(
+        license_id=lic.id,
+        event_type=LicenseEventType.MACHINE_RESET,
+        from_state=lic.status.value,
+        to_state=lic.status.value,
+        actor=admin.username,
+        notes=f"Admin reset all machine bindings: {req.reason}"
+    )
+    db.add(event)
+    log_admin_action(db, admin.id, "RESET_MACHINE", "LICENSE", lic.id, {"reason": req.reason})
+    db.commit()
+    return {"success": True, "message": "Machines reset successfully. You may now activate a new PC."}
+
 @router.post("/licenses/{license_id}/suspend")
 def suspend_license(
     license_id: int,
