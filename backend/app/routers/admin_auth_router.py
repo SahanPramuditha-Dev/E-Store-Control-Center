@@ -62,7 +62,8 @@ async def login_for_admin_token(
             detail="Username and password are required"
         )
 
-    user = db.query(AdminUser).filter(AdminUser.username == username.strip()).first()
+    clean_user = username.strip().lower()
+    user = db.query(AdminUser).filter(func.lower(AdminUser.username) == clean_user).first()
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
