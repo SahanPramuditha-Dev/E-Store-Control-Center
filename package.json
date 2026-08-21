@@ -1,0 +1,7 @@
+{
+  "name": "e-store-control-center-root",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix frontend install && npm --prefix frontend run build"
+  }
+}
