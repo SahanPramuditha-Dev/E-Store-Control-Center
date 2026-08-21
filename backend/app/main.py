@@ -1,11 +1,12 @@
 import os
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from app.config import settings
-from app.database import engine, Base
+from app.database import engine, Base, get_db
 from app.routers import license_router, admin_auth_router, admin_management_router
 
 # Auto-create tables in development if needed
@@ -51,3 +52,24 @@ def health_check():
         "service": settings.PROJECT_NAME,
         "schema_version": settings.CURRENT_LICENSE_SCHEMA_VERSION
     }
+
+@app.get("/api/db-check")
+def db_connection_check(db: Session = Depends(get_db)):
+    try:
+        from sqlalchemy import text
+        result = db.execute(text("SELECT 1 AS live, current_database(), current_user;")).fetchone()
+        return {
+            "status": "connected",
+            "message": "Supabase Cloud Database is connected and responding!",
+            "database": result[1],
+            "connected_as": result[2],
+            "host": settings.DATABASE_URL.split("@")[-1] if "@" in settings.DATABASE_URL else "masked"
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "message": "Database connection failed",
+            "error": str(e),
+            "trace": traceback.format_exc()[-300:]
+        }
