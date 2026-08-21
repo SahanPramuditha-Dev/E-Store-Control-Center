@@ -244,6 +244,22 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                   />
                 </div>
                 <div>
+                  <label className="text-xs text-slate-400 font-medium block mb-1">Industry Vertical *</label>
+                  <select
+                    name="industry_code"
+                    value={formData.industry_code || 'MOBILE_RETAIL'}
+                    onChange={handleChange}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                  >
+                    <option value="MOBILE_RETAIL">📱 Mobile Retail & Repair Center</option>
+                    <option value="GROCERY">🥦 Supermarket & Grocery Store</option>
+                    <option value="FASHION">👗 Fashion, Apparel & Footwear</option>
+                    <option value="ELECTRONICS">📺 Consumer Electronics</option>
+                    <option value="COSMETICS">✨ Cosmetics & Pharmacy</option>
+                    <option value="GENERAL_RETAIL">🏷️ General Retail & Hardware</option>
+                  </select>
+                </div>
+                <div>
                   <label className="text-xs text-slate-400 font-medium block mb-1">Physical Address</label>
                   <input
                     type="text"
@@ -257,6 +273,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
               </div>
             </div>
           )}
+
 
           {step === 2 && (
             <div className="space-y-4">

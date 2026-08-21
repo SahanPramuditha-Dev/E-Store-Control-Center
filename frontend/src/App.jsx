@@ -14,6 +14,7 @@ import LicensesPage from './pages/LicensesPage';
 import MachinesPage from './pages/MachinesPage';
 import FeatureFlagsPage from './pages/FeatureFlagsPage';
 import ReleasesPage from './pages/ReleasesPage';
+import IndustryTemplatesPage from './pages/IndustryTemplatesPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SupportPage from './pages/SupportPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
@@ -66,6 +67,7 @@ export default function App() {
               <Route path="/machines" element={<MachinesPage />} />
 
               {/* Product & Rollout */}
+              <Route path="/industry-templates" element={<IndustryTemplatesPage />} />
               <Route path="/feature-flags" element={<FeatureFlagsPage />} />
               <Route path="/releases" element={<ReleasesPage />} />
 

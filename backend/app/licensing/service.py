@@ -30,8 +30,12 @@ class LicenseService:
         license_obj: License,
         machine_fingerprint: str
     ) -> SignedLicenseToken:
+        from app.licensing.industry_capability_service import resolve_effective_capabilities
         features = cls.get_package_features(db, license_obj.package)
         
+        cap_res = resolve_effective_capabilities(db, tenant=license_obj.tenant, shop=license_obj.shop, package=license_obj.package)
+        enabled_caps = [k for k, v in cap_res["effective_capabilities"].items() if v]
+
         payload = LicensePayload(
             license_schema_version=license_obj.schema_version,
             license_id=license_obj.license_key,
@@ -39,6 +43,9 @@ class LicenseService:
             shop_code=license_obj.shop.shop_code,
             package_code=license_obj.package.code,
             entitlements=features,
+            industry_code=cap_res["industry_code"],
+            capabilities=enabled_caps,
+            configuration_version=cap_res["configuration_version"],
             license_type=license_obj.license_type.value,
             issued_at=license_obj.issued_at.isoformat().replace("+00:00", "Z") if license_obj.issued_at else utcnow_iso(),
             starts_at=license_obj.starts_at.isoformat().replace("+00:00", "Z") if license_obj.starts_at else utcnow_iso(),

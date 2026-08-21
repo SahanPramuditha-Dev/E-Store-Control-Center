@@ -104,7 +104,10 @@ class Tenant(Base):
     address = Column(Text, nullable=True)
     
     # Extended Enterprise SaaS Attributes
-    industry = Column(String(80), default="Electronics & Retail", nullable=True)
+    industry = Column(String(80), default="MOBILE_RETAIL", nullable=True)
+    industry_code = Column(String(50), default="MOBILE_RETAIL", nullable=False)
+    configuration_version = Column(Integer, default=1, nullable=False)
+    capabilities_override = Column(JSON, default=dict, nullable=True)
     country = Column(String(80), default="Sri Lanka", nullable=True)
     currency = Column(String(10), default="LKR", nullable=True)
     timezone = Column(String(50), default="Asia/Colombo", nullable=True)
@@ -409,6 +412,31 @@ class BackgroundJob(Base):
     error_log = Column(Text, nullable=True)
 
 
+class IndustryTemplate(Base):
+    __tablename__ = "industry_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(50), unique=True, index=True, nullable=False)  # MOBILE_RETAIL, GROCERY, FASHION, ELECTRONICS, COSMETICS, GENERAL_RETAIL
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    default_capabilities = Column(JSON, default=dict, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+
+class CapabilityDefinition(Base):
+    __tablename__ = "capability_definitions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(50), unique=True, index=True, nullable=False)  # imei_tracking, weighted_products, etc.
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(50), default="CORE", nullable=False)  # HARDWARE, INVENTORY, POS, OPERATIONS, CATALOG
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+
+
 class AdminUser(Base):
     __tablename__ = "admin_users"
 
@@ -433,3 +461,4 @@ class AuditLog(Base):
     details_json = Column(JSON, nullable=True)
     ip_address = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
+

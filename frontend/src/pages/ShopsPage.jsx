@@ -90,14 +90,15 @@ export default function ShopsPage() {
         api.get('/admin/tenants'),
         api.get('/admin/shops')
       ]);
-      setTenants(tenantsRes.data);
-      setShops(shopsRes.data);
+      setTenants(Array.isArray(tenantsRes.data) ? tenantsRes.data : []);
+      setShops(Array.isArray(shopsRes.data) ? shopsRes.data : []);
     } catch (err) {
-      showToast('Failed to load tenants and shops', 'error');
+      showToast(err.response?.data?.detail || 'Failed to load tenants and shops', 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchData();

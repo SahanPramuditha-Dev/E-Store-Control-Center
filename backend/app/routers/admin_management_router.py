@@ -1489,3 +1489,144 @@ def get_activity_timeline(
     return timeline[:limit]
 
 
+# --- 22. Industry Templates & Capability Engine Endpoints ---
+
+@router.get("/industries")
+def list_industry_templates(
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin)
+):
+    from app.licensing.industry_capability_service import seed_industry_templates_and_capabilities
+    seed_industry_templates_and_capabilities(db)
+    from app.models import IndustryTemplate
+    templates = db.query(IndustryTemplate).filter(IndustryTemplate.is_active == True).all()
+    return [{
+        "id": t.id,
+        "code": t.code,
+        "name": t.name,
+        "description": t.description,
+        "default_capabilities": t.default_capabilities,
+        "is_active": t.is_active
+    } for t in templates]
+
+
+@router.get("/capabilities/registry")
+def list_capability_registry(
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin)
+):
+    from app.licensing.industry_capability_service import seed_industry_templates_and_capabilities
+    seed_industry_templates_and_capabilities(db)
+    from app.models import CapabilityDefinition
+    caps = db.query(CapabilityDefinition).filter(CapabilityDefinition.is_active == True).all()
+    return [{
+        "id": c.id,
+        "key": c.key,
+        "name": c.name,
+        "description": c.description,
+        "category": c.category
+    } for c in caps]
+
+
+class ResolveCapabilitiesRequest(BaseModel):
+    industry_code: str = "MOBILE_RETAIL"
+    package_code: Optional[str] = None
+    overrides: Optional[dict] = None
+
+
+@router.post("/capabilities/resolve-preview")
+def preview_capability_resolution(
+    payload: ResolveCapabilitiesRequest,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin)
+):
+    from app.licensing.industry_capability_service import (
+        seed_industry_templates_and_capabilities,
+        DEFAULT_INDUSTRY_TEMPLATES,
+        STANDARD_CAPABILITIES
+    )
+    seed_industry_templates_and_capabilities(db)
+    from app.models import IndustryTemplate
+    
+    template = db.query(IndustryTemplate).filter(IndustryTemplate.code == payload.industry_code).first()
+    ind_defaults = template.default_capabilities if template else DEFAULT_INDUSTRY_TEMPLATES.get(payload.industry_code, {}).get("capabilities", {})
+    overrides = payload.overrides or {}
+    
+    breakdown = {}
+    effective = {}
+    for cap in STANDARD_CAPABILITIES:
+        k = cap["key"]
+        ind_val = ind_defaults.get(k, False)
+        org_val = overrides.get(k, None)
+        eff_val = org_val if org_val is not None else ind_val
+        effective[k] = eff_val
+        breakdown[k] = {
+            "name": cap["name"],
+            "category": cap["category"],
+            "industry_default": ind_val,
+            "organization_override": org_val,
+            "plan_entitled": True,
+            "effective": eff_val
+        }
+        
+    return {
+        "industry_code": payload.industry_code,
+        "effective_capabilities": effective,
+        "capability_breakdown": breakdown
+    }
+
+
+class TenantCapabilityUpdateRequest(BaseModel):
+    industry_code: Optional[str] = None
+    capabilities_override: Optional[dict] = None
+    reason: Optional[str] = "Admin update"
+
+
+@router.put("/tenants/{tenant_id}/capabilities")
+def update_tenant_capabilities(
+    tenant_id: int,
+    payload: TenantCapabilityUpdateRequest,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin)
+):
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+        
+    old_val = {
+        "industry_code": tenant.industry_code,
+        "capabilities_override": tenant.capabilities_override,
+        "config_version": tenant.configuration_version
+    }
+    
+    if payload.industry_code:
+        tenant.industry = payload.industry_code
+        tenant.industry_code = payload.industry_code
+    if payload.capabilities_override is not None:
+        tenant.capabilities_override = payload.capabilities_override
+        
+    tenant.configuration_version = (tenant.configuration_version or 1) + 1
+    
+    # Audit log
+    audit = AuditLog(
+        admin_user_id=admin.id,
+        action="UPDATE_TENANT_CAPABILITIES",
+        entity_type="TENANT",
+        entity_id=str(tenant.id),
+        details_json={
+            "old": old_val,
+            "new": {
+                "industry_code": tenant.industry_code,
+                "capabilities_override": tenant.capabilities_override,
+                "config_version": tenant.configuration_version
+            },
+            "reason": payload.reason
+        }
+    )
+    db.add(audit)
+    db.commit()
+    
+    from app.licensing.industry_capability_service import resolve_effective_capabilities
+    return resolve_effective_capabilities(db, tenant=tenant)
+
+

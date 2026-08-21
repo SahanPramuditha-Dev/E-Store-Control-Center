@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Building2, Store, Key, Laptop, CreditCard, 
   ShieldCheck, LogOut, Package, History, Search, Plus, 
   User, Sun, Moon, Activity, Sliders, LifeBuoy, Megaphone, 
-  PackageCheck, Server, Settings, ChevronRight, Sparkles 
+  PackageCheck, Server, Settings, ChevronRight, Sparkles, Layers 
 } from 'lucide-react';
 import { useTheme } from './ThemeContext';
 import CommandPalette from './CommandPalette';
@@ -58,6 +58,7 @@ export default function Layout({ onLogout }) {
     {
       title: 'Product & Rollout',
       items: [
+        { to: '/industry-templates', label: 'Industry Templates', icon: Layers },
         { to: '/feature-flags', label: 'Feature Flags', icon: Sliders },
         { to: '/releases', label: 'POS Releases & OTA', icon: PackageCheck },
       ]

@@ -32,14 +32,15 @@ export default function SubscriptionsPage() {
     try {
       setLoading(true);
       const res = await api.get('/admin/packages');
-      setPackages(res.data.packages || []);
-      setAllFeatures(res.data.all_features || []);
+      setPackages(res.data?.packages || []);
+      setAllFeatures(res.data?.all_features || []);
     } catch (err) {
-      showToast('Failed to load subscriptions & plans.', 'error');
+      showToast(err.response?.data?.detail || 'Failed to load subscriptions & plans.', 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchPackages();
