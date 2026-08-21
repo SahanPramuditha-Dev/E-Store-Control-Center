@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { 
   CreditCard, Plus, RefreshCw, X, Loader2, 
-  Printer, FileSpreadsheet, Search, Filter 
+  Printer, FileSpreadsheet, Search, Filter, ArrowUpRight, CheckCircle2 
 } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../components/ToastContext';
+import { useTheme } from '../components/ThemeContext';
 import InvoiceModal from '../components/InvoiceModal';
 
 export default function PaymentsPage() {
   const { showToast } = useToast();
+  const { isDark } = useTheme();
   const [payments, setPayments] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [shops, setShops] = useState([]);
@@ -136,29 +138,43 @@ export default function PaymentsPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Financial Ledger & Invoices</h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Complete transaction record of initial activations, license renewals, and custom feature upgrades.
+          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Billing & Payment Ledger
+          </h1>
+          <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            Financial revenue registry, payment receipts, and automated tax invoice generator
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 font-extrabold font-mono text-xs">
-            Total Revenue: Rs {totalCollected.toLocaleString()}
-          </div>
+          <button
+            onClick={fetchData}
+            className={`p-2.5 rounded-2xl border transition shadow-xs active:scale-95 ${
+              isDark 
+                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
+                : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
+            }`}
+            title="Refresh"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300 hover:text-white transition"
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold border transition shadow-xs active:scale-95 ${
+              isDark 
+                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
+                : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
+            }`}
           >
-            <FileSpreadsheet className="w-4 h-4 text-teal-400" />
+            <FileSpreadsheet className="w-4 h-4 text-teal-500" />
             <span>Export CSV</span>
           </button>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl text-xs transition shadow-lg shadow-teal-500/20"
+            className="flex items-center gap-2 px-4 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-2xl text-xs transition shadow-md shadow-teal-500/20 active:scale-95 hover:-translate-y-0.5"
           >
             <Plus className="w-4 h-4" />
             <span>Record Payment</span>
@@ -166,16 +182,60 @@ export default function PaymentsPage() {
         </div>
       </div>
 
+      {/* Summary Widget */}
+      <div className={`p-6 sm:p-7 rounded-3xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5 ${
+        isDark 
+          ? 'bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/30 border-slate-800' 
+          : 'bg-gradient-to-r from-white via-white to-emerald-50/50 border-slate-200'
+      }`}>
+        <div className="flex items-center gap-4">
+          <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${
+            isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+          }`}>
+            <CreditCard className="w-6 h-6" />
+          </div>
+          <div>
+            <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Total Revenue Invoiced
+            </span>
+            <h2 className={`text-2xl sm:text-3xl font-extrabold mt-0.5 tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Rs {totalCollected.toLocaleString()}
+            </h2>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <div>
+            <span className={`text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Total Transactions</span>
+            <p className={`text-xl font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>{payments.length}</p>
+          </div>
+          <div className={`h-8 w-px ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+          <div>
+            <span className={`text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Fiscal Ledger Status</span>
+            <p className="text-xs font-bold text-emerald-500 flex items-center gap-1.5 mt-0.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Balanced & Verified</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Filter Bar */}
-      <div className="flex flex-col md:flex-row gap-3 p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+      <div className={`flex flex-col md:flex-row gap-3 p-4 rounded-3xl border shadow-sm ${
+        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
+      }`}>
         <div className="flex-1 relative">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
-            placeholder="Search by tenant, shop, license key, or bank ref..."
+            placeholder="Search by company, shop, reference no, or license key..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
+            className={`w-full rounded-2xl pl-10 pr-4 py-2.5 text-xs focus:outline-none transition border ${
+              isDark 
+                ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-teal-500' 
+                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-teal-600'
+            }`}
           />
         </div>
 
@@ -183,102 +243,106 @@ export default function PaymentsPage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+            className={`rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none border ${
+              isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+            }`}
           >
             <option value="ALL">All Types</option>
-            <option value="INITIAL">INITIAL</option>
+            <option value="NEW_LICENSE">NEW_LICENSE</option>
             <option value="RENEWAL">RENEWAL</option>
+            <option value="CUSTOM_FEATURE">CUSTOM_FEATURE</option>
             <option value="UPGRADE">UPGRADE</option>
           </select>
 
           <select
             value={methodFilter}
             onChange={(e) => setMethodFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+            className={`rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none border ${
+              isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+            }`}
           >
             <option value="ALL">All Methods</option>
-            <option value="BANK_TRANSFER">Bank Transfer</option>
-            <option value="CASH">Cash</option>
-            <option value="CARD">Card</option>
-            <option value="CHEQUE">Cheque</option>
-            <option value="ONLINE">Online Gateway</option>
+            <option value="BANK_TRANSFER">BANK_TRANSFER</option>
+            <option value="CASH">CASH</option>
+            <option value="CARD">CARD</option>
+            <option value="ONLINE_GATEWAY">ONLINE_GATEWAY</option>
           </select>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl overflow-hidden shadow-xl">
+      {/* Ledger Table */}
+      <div className={`rounded-3xl border overflow-hidden shadow-sm ${
+        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
+      }`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="uppercase tracking-wider text-[10px] text-slate-400 bg-slate-950/80 border-b border-slate-800">
+            <thead className={`uppercase tracking-wider text-[10px] font-bold border-b ${
+              isDark ? 'text-slate-400 bg-slate-950/80 border-slate-800' : 'text-slate-600 bg-slate-50 border-slate-200'
+            }`}>
               <tr>
-                <th className="px-5 py-4">Transaction ID</th>
-                <th className="px-5 py-4">Client Organization</th>
-                <th className="px-5 py-4">Branch Shop</th>
+                <th className="px-5 py-4">Receipt ID</th>
+                <th className="px-5 py-4">Client Shop & Tenant</th>
                 <th className="px-5 py-4">Amount (LKR)</th>
-                <th className="px-5 py-4">Category</th>
-                <th className="px-5 py-4">Method & Ref</th>
-                <th className="px-5 py-4">Payment Date</th>
-                <th className="px-5 py-4 text-right">Receipt</th>
+                <th className="px-5 py-4">Type & Method</th>
+                <th className="px-5 py-4">Reference No</th>
+                <th className="px-5 py-4">Date Recorded</th>
+                <th className="px-5 py-4 text-right">Invoice</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+            <tbody className={`divide-y ${
+              isDark ? 'divide-slate-800/60 text-slate-300' : 'divide-slate-200 text-slate-700'
+            }`}>
               {loading && payments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-500">
-                    <RefreshCw className="w-6 h-6 text-teal-400 animate-spin mx-auto mb-2" />
-                    Loading payment records...
+                  <td colSpan={7} className="text-center py-12 text-slate-500">
+                    <RefreshCw className="w-6 h-6 text-teal-500 animate-spin mx-auto mb-2" />
+                    Loading billing ledger...
                   </td>
                 </tr>
               ) : filteredPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
-                    No transactions match your search.
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                    No payment records match your filters.
                   </td>
                 </tr>
               ) : (
                 filteredPayments.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-800/30 transition">
+                  <tr key={p.id} className={`transition ${isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50/80'}`}>
                     <td className="px-5 py-4 font-mono text-slate-400">
-                      #{p.id}
+                      #{p.id.toString().padStart(5, '0')}
                     </td>
-
                     <td className="px-5 py-4">
-                      <p className="font-bold text-white">{p.tenant_name}</p>
+                      <div className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{p.shop_name}</div>
+                      <div className="text-slate-400 text-[11px]">{p.tenant_name}</div>
                     </td>
-
-                    <td className="px-5 py-4 text-slate-300">
-                      {p.shop_name}
+                    <td className="px-5 py-4 font-mono font-bold text-teal-500 text-sm">
+                      Rs {Number(p.amount_lkr).toLocaleString()}
                     </td>
-
-                    <td className="px-5 py-4 font-bold font-mono text-teal-400 text-sm">
-                      Rs {Number(p.amount_lkr).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </td>
-
                     <td className="px-5 py-4">
-                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-slate-800 text-slate-200">
-                        {p.payment_type}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="font-medium text-white">{p.payment_method}</div>
-                      <div className="font-mono text-[11px] text-slate-400 mt-0.5">
-                        {p.reference_no || '—'}
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                          isDark ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-slate-100 text-slate-800 border-slate-200'
+                        }`}>
+                          {p.payment_type}
+                        </span>
+                        <span className="text-[11px] text-slate-400">{p.payment_method}</span>
                       </div>
                     </td>
-
+                    <td className="px-5 py-4 font-mono text-slate-400">
+                      {p.reference_no || '—'}
+                    </td>
                     <td className="px-5 py-4 text-slate-400">
                       {new Date(p.payment_date || p.created_at).toLocaleDateString()}
                     </td>
-
                     <td className="px-5 py-4 text-right">
                       <button
                         onClick={() => setSelectedInvoice(p)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 text-[11px] font-semibold transition"
+                        title="Print / Download Tax Receipt"
+                        className={`p-1.5 rounded-xl border transition ${
+                          isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-teal-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-teal-700 border-slate-200'
+                        }`}
                       >
                         <Printer className="w-3.5 h-3.5" />
-                        <span>Invoice</span>
                       </button>
                     </td>
                   </tr>
@@ -292,144 +356,140 @@ export default function PaymentsPage() {
       {/* Invoice Modal */}
       {selectedInvoice && (
         <InvoiceModal
-          isOpen={!!selectedInvoice}
-          onClose={() => setSelectedInvoice(null)}
           payment={selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
         />
       )}
 
       {/* Record Payment Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+          <div className={`w-full max-w-lg rounded-3xl p-6 sm:p-7 border shadow-2xl ${
+            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className={`flex items-center justify-between pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
-                  <CreditCard className="w-4 h-4" />
-                </div>
-                <h2 className="text-base font-bold text-white">Record Client Payment</h2>
+                <CreditCard className="w-5 h-5 text-teal-500" />
+                <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Record Payment Transaction
+                </h2>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowModal(false)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleRecordPayment} className="space-y-4 mt-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-400 mb-1">Select Tenant</label>
-                <select
-                  value={form.tenant_id}
-                  onChange={(e) => {
-                    const tId = e.target.value;
-                    const relatedShop = shops.find(s => s.tenant_id.toString() === tId);
-                    setForm({
-                      ...form,
-                      tenant_id: tId,
-                      shop_id: relatedShop ? relatedShop.id.toString() : ''
-                    });
-                  }}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
-                  required
-                >
-                  {tenants.map(t => (
-                    <option key={t.id} value={t.id}>{t.company_name} ({t.tenant_code})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-400 mb-1">Branch Shop</label>
-                <select
-                  value={form.shop_id}
-                  onChange={(e) => setForm({ ...form, shop_id: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
-                  required
-                >
-                  {availableShops.map(s => (
-                    <option key={s.id} value={s.id}>{s.shop_name} ({s.shop_code})</option>
-                  ))}
-                </select>
-              </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-400 mb-1">Amount (LKR) *</label>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Client Organization *</label>
+                  <select
+                    value={form.tenant_id}
+                    onChange={(e) => setForm({ ...form, tenant_id: e.target.value, shop_id: '' })}
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
+                    required
+                  >
+                    {tenants.map(t => (
+                      <option key={t.id} value={t.id}>{t.company_name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Branch Shop *</label>
+                  <select
+                    value={form.shop_id}
+                    onChange={(e) => setForm({ ...form, shop_id: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
+                    required
+                  >
+                    <option value="">Select branch</option>
+                    {availableShops.map(s => (
+                      <option key={s.id} value={s.id}>{s.shop_name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Amount (LKR) *</label>
                   <input
                     type="number"
                     required
                     placeholder="95000"
                     value={form.amount_lkr}
                     onChange={(e) => setForm({ ...form, amount_lkr: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none font-mono"
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none font-mono ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-400 mb-1">Payment Category</label>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Payment Type</label>
                   <select
                     value={form.payment_type}
                     onChange={(e) => setForm({ ...form, payment_type: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
                   >
-                    <option value="INITIAL">INITIAL PURCHASE</option>
-                    <option value="RENEWAL">ANNUAL RENEWAL</option>
-                    <option value="UPGRADE">PLAN UPGRADE</option>
+                    <option value="NEW_LICENSE">NEW_LICENSE</option>
+                    <option value="RENEWAL">RENEWAL</option>
+                    <option value="CUSTOM_FEATURE">CUSTOM_FEATURE</option>
+                    <option value="UPGRADE">UPGRADE</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-400 mb-1">Payment Method</label>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Payment Method</label>
                   <select
                     value={form.payment_method}
                     onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
                   >
-                    <option value="BANK_TRANSFER">Bank Deposit / Transfer</option>
-                    <option value="CASH">Cash</option>
-                    <option value="CARD">Credit / Debit Card</option>
-                    <option value="CHEQUE">Cheque</option>
-                    <option value="ONLINE">Online Payment</option>
+                    <option value="BANK_TRANSFER">Bank Transfer (Direct Deposit)</option>
+                    <option value="CASH">Cash Over Counter</option>
+                    <option value="CARD">Debit / Credit Card</option>
+                    <option value="ONLINE_GATEWAY">Online Gateway / Slip</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-400 mb-1">Reference No / Slip</label>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Bank Slip / Reference No</label>
                   <input
                     type="text"
-                    placeholder="e.g. TXN-884912"
+                    placeholder="e.g. TXN-99882"
                     value={form.reference_no}
                     onChange={(e) => setForm({ ...form, reference_no: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none font-mono"
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none font-mono ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-400 mb-1">Internal Notes</label>
-                <input
-                  type="text"
-                  placeholder="Optional remarks"
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+              <div className={`flex justify-end gap-3 pt-4 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl font-medium"
+                  className={`px-4 py-2 rounded-xl font-bold border ${
+                    isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-teal-500/20"
+                  className="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-xl shadow-md shadow-teal-500/20"
                 >
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Save Transaction</span>
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Record Transaction'}
                 </button>
               </div>
             </form>

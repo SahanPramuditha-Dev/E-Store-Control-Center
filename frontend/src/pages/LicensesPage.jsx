@@ -6,11 +6,14 @@ import {
 } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../components/ToastContext';
+import { useTheme } from '../components/ThemeContext';
 import TokenInspectorModal from '../components/TokenInspectorModal';
 
 export default function LicensesPage() {
   const { showToast } = useToast();
+  const { isDark } = useTheme();
   const [licenses, setLicenses] = useState([]);
+
   const [tenants, setTenants] = useState([]);
   const [shops, setShops] = useState([]);
   const [packages, setPackages] = useState([]);
@@ -253,33 +256,43 @@ export default function LicensesPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">License Management</h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            License Management
+          </h1>
+          <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
             Generate, sign, extend, and audit Ed25519 cryptographic tokens for client shops.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={fetchData}
-            className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 hover:text-white transition"
+            className={`p-2.5 rounded-2xl border transition shadow-xs active:scale-95 ${
+              isDark 
+                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
+                : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
+            }`}
             title="Refresh"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300 hover:text-white transition"
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold border transition shadow-xs active:scale-95 ${
+              isDark 
+                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
+                : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
+            }`}
           >
-            <FileSpreadsheet className="w-4 h-4 text-teal-400" />
+            <FileSpreadsheet className="w-4 h-4 text-teal-500" />
             <span>Export CSV</span>
           </button>
           <button
             onClick={() => setShowIssueModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl text-xs transition shadow-lg shadow-teal-500/20"
+            className="flex items-center gap-2 px-4 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-2xl text-xs transition shadow-md shadow-teal-500/20 active:scale-95 hover:-translate-y-0.5"
           >
             <Plus className="w-4 h-4" />
             <span>Issue New License</span>
@@ -288,15 +301,21 @@ export default function LicensesPage() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col md:flex-row gap-3 p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+      <div className={`flex flex-col md:flex-row gap-3 p-4 rounded-3xl border shadow-sm ${
+        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
+      }`}>
         <div className="flex-1 relative">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
             placeholder="Search by license key, company or shop name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
+            className={`w-full rounded-2xl pl-10 pr-4 py-2.5 text-xs focus:outline-none transition border ${
+              isDark 
+                ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-teal-500' 
+                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-teal-600'
+            }`}
           />
         </div>
 
@@ -304,7 +323,9 @@ export default function LicensesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+            className={`rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none border ${
+              isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+            }`}
           >
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">ACTIVE</option>
@@ -318,7 +339,9 @@ export default function LicensesPage() {
           <select
             value={packageFilter}
             onChange={(e) => setPackageFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
+            className={`rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none border ${
+              isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+            }`}
           >
             <option value="ALL">All Packages</option>
             {packages.map((pkg) => (
@@ -329,10 +352,14 @@ export default function LicensesPage() {
       </div>
 
       {/* Table of Licenses */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl overflow-hidden shadow-xl">
+      <div className={`rounded-3xl border overflow-hidden shadow-sm ${
+        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
+      }`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="uppercase tracking-wider text-[10px] text-slate-400 bg-slate-950/80 border-b border-slate-800">
+            <thead className={`uppercase tracking-wider text-[10px] font-bold border-b ${
+              isDark ? 'text-slate-400 bg-slate-950/80 border-slate-800' : 'text-slate-600 bg-slate-50 border-slate-200'
+            }`}>
               <tr>
                 <th className="px-5 py-4">License Key</th>
                 <th className="px-5 py-4">Shop & Tenant</th>
@@ -343,11 +370,13 @@ export default function LicensesPage() {
                 <th className="px-5 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+            <tbody className={`divide-y ${
+              isDark ? 'divide-slate-800/60 text-slate-300' : 'divide-slate-200 text-slate-700'
+            }`}>
               {loading && licenses.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-slate-500">
-                    <Loader2 className="w-6 h-6 text-teal-400 animate-spin mx-auto mb-2" />
+                    <Loader2 className="w-6 h-6 text-teal-500 animate-spin mx-auto mb-2" />
                     Loading licenses...
                   </td>
                 </tr>
@@ -364,19 +393,21 @@ export default function LicensesPage() {
                   const isRevoked = lic.status === 'REVOKED';
 
                   return (
-                    <tr key={lic.id} className="hover:bg-slate-800/30 transition">
+                    <tr key={lic.id} className={`transition ${isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50/80'}`}>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-teal-300 select-all">
+                          <span className="font-mono font-bold text-teal-500 select-all">
                             {lic.license_key}
                           </span>
                           <button
                             onClick={() => handleCopy(lic.license_key)}
                             title="Copy License Key"
-                            className="p-1 text-slate-400 hover:text-teal-300 hover:bg-slate-800 rounded-lg transition"
+                            className={`p-1 rounded-lg transition ${
+                              isDark ? 'text-slate-400 hover:text-teal-400 hover:bg-slate-800' : 'text-slate-500 hover:text-teal-600 hover:bg-slate-100'
+                            }`}
                           >
                             {copiedKey === lic.license_key ? (
-                              <Check className="w-3.5 h-3.5 text-teal-400" />
+                              <Check className="w-3.5 h-3.5 text-teal-500" />
                             ) : (
                               <Copy className="w-3.5 h-3.5" />
                             )}
@@ -388,22 +419,24 @@ export default function LicensesPage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <div className="font-bold text-white">{lic.shop_name}</div>
+                        <div className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{lic.shop_name}</div>
                         <div className="text-slate-400 text-[11px]">{lic.tenant_name}</div>
                       </td>
 
                       <td className="px-5 py-4">
-                        <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold font-mono bg-slate-800 text-teal-300 border border-slate-700">
+                        <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold font-mono border ${
+                          isDark ? 'bg-slate-800 text-teal-400 border-slate-700' : 'bg-slate-100 text-teal-700 border-slate-200'
+                        }`}>
                           {lic.package_code}
                         </span>
                       </td>
 
                       <td className="px-5 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide ${
-                          isActive ? 'bg-teal-500/10 text-teal-300 border border-teal-500/30' :
-                          isSuspended ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30' :
-                          isRevoked ? 'bg-rose-500/10 text-rose-300 border border-rose-500/30' :
-                          'bg-slate-800 text-slate-300'
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide border ${
+                          isActive ? (isDark ? 'bg-teal-500/10 text-teal-400 border-teal-500/30' : 'bg-teal-50 text-teal-700 border-teal-200') :
+                          isSuspended ? (isDark ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-amber-50 text-amber-700 border-amber-200') :
+                          isRevoked ? (isDark ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' : 'bg-rose-50 text-rose-700 border-rose-200') :
+                          'bg-slate-100 text-slate-700 border-slate-200'
                         }`}>
                           {lic.status}
                         </span>
@@ -411,64 +444,70 @@ export default function LicensesPage() {
 
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-semibold text-white">
+                          <span className={`font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                             {lic.active_machines_count} / {lic.max_machines}
                           </span>
                           <span className="text-[11px] text-slate-400">Terminals</span>
                         </div>
                         {lic.replacement_count > 0 && (
-                          <span className="text-[10px] text-amber-400">
-                            (Reset {lic.replacement_count}x)
+                          <span className="text-[10px] text-amber-500 font-semibold">
+                            ({lic.replacement_count} hw resets)
                           </span>
                         )}
                       </td>
 
                       <td className="px-5 py-4">
-                        <div className="font-medium text-white">
-                          {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString() : 'Lifetime'}
+                        <div className="font-mono text-xs text-slate-400">
+                          {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString() : 'LIFETIME'}
                         </div>
                       </td>
 
                       <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Inspect Token */}
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Token Inspector */}
                           <button
                             onClick={() => {
                               setSelectedLicense(lic);
                               setShowTokenModal(true);
                             }}
-                            title="Inspect Signed Token & Signature"
-                            className="p-1.5 text-teal-400 hover:bg-teal-500/10 rounded-lg transition"
+                            title="Inspect Asymmetric Ed25519 Token"
+                            className={`p-1.5 rounded-xl border transition ${
+                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-teal-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-teal-700 border-slate-200'
+                            }`}
                           >
-                            <ShieldCheck className="w-4 h-4" />
+                            <ShieldCheck className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Renew Button */}
-                          <button
-                            onClick={() => {
-                              setSelectedLicense(lic);
-                              setShowRenewModal(true);
-                            }}
-                            title="Extend Validity / Renew"
-                            className="p-1.5 text-sky-400 hover:bg-sky-500/10 rounded-lg transition"
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </button>
-
-                          {/* Reset Machine */}
+                          {/* Reset Machine Bindings */}
                           <button
                             onClick={() => {
                               setSelectedLicense(lic);
                               setShowResetModal(true);
                             }}
-                            title="Reset Hardware Machine Bindings"
-                            className="p-1.5 text-amber-400 hover:bg-amber-500/10 rounded-lg transition"
+                            title="Reset Hardware Fingerprint"
+                            className={`p-1.5 rounded-xl border transition ${
+                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                            }`}
                           >
-                            <RotateCcw className="w-4 h-4" />
+                            <RotateCcw className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Suspend / Reactivate */}
-                          {isActive ? (
+                          {/* Renew License */}
+                          <button
+                            onClick={() => {
+                              setSelectedLicense(lic);
+                              setShowRenewModal(true);
+                            }}
+                            title="Renew License Duration"
+                            className={`p-1.5 rounded-xl border transition ${
+                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-teal-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-teal-700 border-slate-200'
+                            }`}
+                          >
+                            <PlayCircle className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Suspend / Revoke */}
+                          {isActive && (
                             <button
                               onClick={() => {
                                 setSelectedLicense(lic);
@@ -476,27 +515,35 @@ export default function LicensesPage() {
                                 setShowActionModal(true);
                               }}
                               title="Suspend License"
-                              className="p-1.5 text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                              className={`p-1.5 rounded-xl border transition ${
+                                isDark ? 'bg-slate-800/80 hover:bg-amber-900/40 text-amber-400 border-slate-700' : 'bg-slate-100 hover:bg-amber-50 text-amber-700 border-slate-200'
+                              }`}
                             >
-                              <Ban className="w-4 h-4" />
+                              <Ban className="w-3.5 h-3.5" />
                             </button>
-                          ) : isSuspended ? (
+                          )}
+
+                          {isSuspended && (
                             <button
                               onClick={() => handleReactivate(lic)}
                               title="Reactivate License"
-                              className="p-1.5 text-teal-400 hover:bg-teal-500/10 rounded-lg transition"
+                              className={`p-1.5 rounded-xl border transition ${
+                                isDark ? 'bg-slate-800/80 hover:bg-teal-900/40 text-teal-400 border-slate-700' : 'bg-slate-100 hover:bg-teal-50 text-teal-700 border-slate-200'
+                              }`}
                             >
-                              <PlayCircle className="w-4 h-4" />
+                              <PlayCircle className="w-3.5 h-3.5" />
                             </button>
-                          ) : null}
+                          )}
 
                           {/* Audit History */}
                           <button
                             onClick={() => openHistory(lic)}
-                            title="View Lifecycle Audit Trail"
-                            className="p-1.5 text-slate-400 hover:bg-slate-800 rounded-lg transition"
+                            title="View Audit Logs"
+                            className={`p-1.5 rounded-xl border transition ${
+                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                            }`}
                           >
-                            <History className="w-4 h-4" />
+                            <History className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>

@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Store, Plus, Search, Building2, MapPin, Phone, Mail, RefreshCw, X, Loader2, Wand2, Users } from 'lucide-react';
+import { 
+  Store, Plus, Search, Building2, MapPin, Phone, Mail, 
+  RefreshCw, X, Loader2, Wand2, Users, ArrowRight 
+} from 'lucide-react';
 import api from '../api';
-
 import { useToast } from '../components/ToastContext';
+import { useTheme } from '../components/ThemeContext';
 
 export default function ShopsPage() {
   const { showToast } = useToast();
+  const { isDark } = useTheme();
   const [tenants, setTenants] = useState([]);
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('companies'); // 'companies' or 'shops'
+  const [activeTab, setActiveTab] = useState('companies');
 
   // Modals
   const [showTenantModal, setShowTenantModal] = useState(false);
@@ -104,7 +108,7 @@ export default function ShopsPage() {
     setSubmitting(true);
     try {
       await api.post('/admin/tenants', tenantForm);
-      showToast('Tenant organization created successfully.', 'success');
+      showToast('Tenant organization registered successfully.', 'success');
       setShowTenantModal(false);
       await fetchData();
       setActiveTab('companies');
@@ -134,7 +138,6 @@ export default function ShopsPage() {
     }
   };
 
-
   const filteredTenants = tenants.filter(t =>
     t.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.tenant_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -150,40 +153,52 @@ export default function ShopsPage() {
   );
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Tenants & Shop Branches</h1>
-          <p className="text-sm text-slate-400 mt-1">Manage customer companies and their individual physical retail branches</p>
+          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Tenants & Shop Branches
+          </h1>
+          <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            Manage client organizations, parent companies, and their respective retail outlets
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={openTenantModal}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm font-medium text-slate-200 hover:bg-slate-800 transition"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold border transition-all duration-200 shadow-xs active:scale-95 ${
+              isDark 
+                ? 'bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800 hover:border-slate-700' 
+                : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50 hover:border-slate-400'
+            }`}
           >
-            <Building2 className="w-4 h-4 text-teal-400" />
-            <span>+ Add Company</span>
+            <Building2 className="w-4 h-4 text-teal-500" />
+            <span>Add Organization</span>
           </button>
           <button
             onClick={() => openShopModal()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold rounded-xl text-sm transition shadow-lg shadow-teal-500/20"
+            className="flex items-center gap-2 px-4 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-2xl text-xs transition-all duration-200 shadow-md shadow-teal-500/20 active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            <span>+ New Branch</span>
+            <span>Add Branch Shop</span>
           </button>
         </div>
       </div>
 
-      {/* Tabs & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-xl w-fit">
+      {/* Tabs & Search Bar */}
+      <div className={`p-4 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm ${
+        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
+      }`}>
+        <div className={`flex items-center p-1 rounded-2xl border ${
+          isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
+        }`}>
           <button
             onClick={() => setActiveTab('companies')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
               activeTab === 'companies'
                 ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
-                : 'text-slate-400 hover:text-slate-200'
+                : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Building2 className="w-4 h-4" />
@@ -191,86 +206,109 @@ export default function ShopsPage() {
           </button>
           <button
             onClick={() => setActiveTab('shops')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
               activeTab === 'shops'
                 ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
-                : 'text-slate-400 hover:text-slate-200'
+                : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Store className="w-4 h-4" />
-            <span>Shop Branches ({shops.length})</span>
+            <span>Branch Outlets ({shops.length})</span>
           </button>
         </div>
 
         <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-500 absolute left-4 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={activeTab === 'companies' ? "Search companies..." : "Search shop branches..."}
-            className="w-full pl-11 pr-4 py-2 bg-slate-900/60 border border-slate-800/80 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-500 transition"
+            placeholder={activeTab === 'companies' ? "Search organizations..." : "Search shop outlets..."}
+            className={`w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs focus:outline-none transition border ${
+              isDark 
+                ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-teal-500' 
+                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-teal-600'
+            }`}
           />
         </div>
       </div>
 
-      {/* Content based on Active Tab */}
+      {/* Content Grid */}
       {loading ? (
-        <div className="p-12 flex justify-center">
-          <RefreshCw className="w-8 h-8 text-teal-400 animate-spin" />
+        <div className="p-12 flex flex-col items-center justify-center">
+          <RefreshCw className="w-8 h-8 text-teal-500 animate-spin mb-2" />
+          <p className="text-xs text-slate-400">Loading Directory...</p>
         </div>
       ) : activeTab === 'companies' ? (
-        /* Companies Tab */
         filteredTenants.length === 0 ? (
-          <div className="p-12 text-center bg-slate-900/40 border border-slate-800/60 rounded-2xl">
-            <Building2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <h3 className="text-base font-semibold text-slate-300">No company tenants found</h3>
-            <p className="text-xs text-slate-500 mt-1">Click "+ Add Company" to register your first business client.</p>
+          <div className={`p-12 text-center rounded-3xl border ${
+            isDark ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <Building2 className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+            <h3 className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>No Organizations Found</h3>
+            <p className="text-xs text-slate-500 mt-1">Click "Add Organization" to register your first tenant.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredTenants.map((t) => (
               <div
                 key={t.id}
-                className="p-6 bg-slate-900/60 border border-slate-800/80 rounded-2xl space-y-4 hover:border-slate-700 transition"
+                className={`p-6 rounded-3xl border space-y-4 transition-all duration-300 hover:-translate-y-1 ${
+                  isDark 
+                    ? 'bg-slate-900/90 border-slate-800/90 shadow-lg shadow-black/20 hover:border-teal-500/50' 
+                    : 'bg-white border-slate-200/90 shadow-sm hover:shadow-md hover:border-teal-500/50'
+                }`}
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                    <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-xl border ${
+                      isDark ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-teal-50 border-teal-200 text-teal-700'
+                    }`}>
                       {t.tenant_code}
                     </span>
-                    <h3 className="text-base font-bold text-white mt-2">{t.company_name}</h3>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">
-                      Contact: <span className="text-slate-200">{t.contact_name}</span>
+                    <h3 className={`text-base font-extrabold mt-2.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.company_name}</h3>
+                    <p className={`text-xs font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Contact: <span className={isDark ? 'text-slate-200' : 'text-slate-800'}>{t.contact_name}</span>
                     </p>
                   </div>
-                  <div className="w-9 h-9 rounded-xl bg-slate-800/80 flex items-center justify-center text-teal-400">
+                  <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center text-teal-500 ${
+                    isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
                     <Building2 className="w-5 h-5" />
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-800/60 space-y-2 text-xs text-slate-400">
+                <div className={`pt-3 border-t space-y-2 text-xs ${
+                  isDark ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-600'
+                }`}>
                   <div className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-slate-500" />
+                    <Phone className="w-3.5 h-3.5 text-slate-400" />
                     <span>{t.phone}</span>
                   </div>
                   {t.email && (
                     <div className="flex items-center gap-2">
-                      <Mail className="w-3.5 h-3.5 text-slate-500" />
+                      <Mail className="w-3.5 h-3.5 text-slate-400" />
                       <span>{t.email}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between">
-                  <span className="text-xs text-slate-400 font-medium">
+                <div className={`pt-3 border-t flex items-center justify-between ${
+                  isDark ? 'border-slate-800' : 'border-slate-100'
+                }`}>
+                  <span className={`text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     {t.shops_count} Physical Branch(es)
                   </span>
                   <button
                     onClick={() => openShopModal(t.id)}
-                    className="px-3 py-1.5 bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/30 rounded-lg text-xs font-semibold transition"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                      isDark 
+                        ? 'bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border-teal-500/30' 
+                        : 'bg-teal-50 hover:bg-teal-100 text-teal-700 border-teal-200'
+                    }`}
                   >
-                    + Add Branch
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Branch</span>
                   </button>
                 </div>
               </div>
@@ -280,44 +318,56 @@ export default function ShopsPage() {
       ) : (
         /* Shops Tab */
         filteredShops.length === 0 ? (
-          <div className="p-12 text-center bg-slate-900/40 border border-slate-800/60 rounded-2xl">
-            <Store className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <h3 className="text-base font-semibold text-slate-300">No shop branches found</h3>
-            <p className="text-xs text-slate-500 mt-1">Add a physical branch under your company tenants.</p>
+          <div className={`p-12 text-center rounded-3xl border ${
+            isDark ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <Store className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+            <h3 className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>No Branch Outlets Found</h3>
+            <p className="text-xs text-slate-500 mt-1">Add a physical branch under your parent company.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredShops.map((shop) => (
               <div
                 key={shop.id}
-                className="p-6 bg-slate-900/60 border border-slate-800/80 rounded-2xl space-y-4 hover:border-slate-700 transition"
+                className={`p-6 rounded-3xl border space-y-4 transition-all duration-300 hover:-translate-y-1 ${
+                  isDark 
+                    ? 'bg-slate-900/90 border-slate-800/90 shadow-lg shadow-black/20 hover:border-sky-500/50' 
+                    : 'bg-white border-slate-200/90 shadow-sm hover:shadow-md hover:border-sky-500/50'
+                }`}
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                    <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-xl border ${
+                      isDark ? 'bg-sky-500/10 border-sky-500/30 text-sky-400' : 'bg-sky-50 border-sky-200 text-sky-700'
+                    }`}>
                       {shop.shop_code}
                     </span>
-                    <h3 className="text-base font-bold text-white mt-2">{shop.shop_name}</h3>
-                    <p className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mt-0.5">
-                      <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                    <h3 className={`text-base font-extrabold mt-2.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{shop.shop_name}</h3>
+                    <p className={`text-xs font-medium flex items-center gap-1.5 mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <Building2 className="w-3.5 h-3.5 text-slate-400" />
                       <span>{shop.tenant_name}</span>
                     </p>
                   </div>
-                  <div className="w-9 h-9 rounded-xl bg-slate-800/80 flex items-center justify-center text-teal-400">
+                  <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center text-sky-500 ${
+                    isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
                     <Store className="w-5 h-5" />
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-800/60 space-y-2 text-xs text-slate-400">
+                <div className={`pt-3 border-t space-y-2 text-xs ${
+                  isDark ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-600'
+                }`}>
                   {shop.city && (
                     <div className="flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
                       <span>{shop.city}, Sri Lanka</span>
                     </div>
                   )}
                   {shop.phone && (
                     <div className="flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5 text-slate-500" />
+                      <Phone className="w-3.5 h-3.5 text-slate-400" />
                       <span>{shop.phone}</span>
                     </div>
                   )}
@@ -331,102 +381,112 @@ export default function ShopsPage() {
       {/* Modal: Create Tenant */}
       {showTenantModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <h2 className="text-lg font-bold text-white">Create Company Tenant</h2>
-              <button onClick={() => setShowTenantModal(false)} className="text-slate-400 hover:text-white">
+          <div className={`w-full max-w-lg rounded-3xl p-6 sm:p-7 border shadow-2xl ${
+            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className={`flex items-center justify-between pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-teal-500" />
+                <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Register Organization
+                </h2>
+              </div>
+              <button onClick={() => setShowTenantModal(false)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleCreateTenant} className="space-y-4 mt-4">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-slate-400">Tenant Code (Unique)</label>
-                  <button
-                    type="button"
-                    onClick={() => setTenantForm(prev => ({ ...prev, tenant_code: generateAutoTenantCode(prev.company_name) }))}
-                    className="text-[11px] text-teal-400 hover:text-teal-300 flex items-center gap-1 font-medium"
-                  >
-                    <Wand2 className="w-3 h-3" />
-                    <span>Auto-Generate</span>
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. TNT-8821"
-                  value={tenantForm.tenant_code}
-                  onChange={(e) => setTenantForm({ ...tenantForm, tenant_code: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none uppercase font-mono tracking-wider"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Company / Business Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. ABC Mobile Solutions Ltd"
-                  value={tenantForm.company_name}
-                  onChange={(e) => {
-                    const name = e.target.value;
-                    setTenantForm(prev => ({
-                      ...prev,
-                      company_name: name,
-                      tenant_code: generateAutoTenantCode(name)
-                    }));
-                  }}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none"
-                />
-              </div>
+
+            <form onSubmit={handleCreateTenant} className="space-y-4 mt-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Owner Contact Name</label>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Company Name *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Kasun Perera"
-                    value={tenantForm.contact_name}
-                    onChange={(e) => setTenantForm({ ...tenantForm, contact_name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none"
+                    placeholder="e.g. Apex Cellular"
+                    value={tenantForm.company_name}
+                    onChange={(e) => setTenantForm(prev => ({
+                      ...prev,
+                      company_name: e.target.value,
+                      tenant_code: prev.tenant_code || generateAutoTenantCode(e.target.value)
+                    }))}
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
                   />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Phone Number</label>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Tenant Code *</label>
+                  <input
+                    type="text"
+                    required
+                    value={tenantForm.tenant_code}
+                    onChange={(e) => setTenantForm(prev => ({ ...prev, tenant_code: e.target.value.toUpperCase() }))}
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none font-mono uppercase ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Contact Person *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Nimal Perera"
+                    value={tenantForm.contact_name}
+                    onChange={(e) => setTenantForm({ ...tenantForm, contact_name: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Phone Number *</label>
                   <input
                     type="text"
                     required
                     placeholder="+94 77 123 4567"
                     value={tenantForm.phone}
                     onChange={(e) => setTenantForm({ ...tenantForm, phone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none"
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Email Address</label>
+                  <input
+                    type="email"
+                    placeholder="billing@apex.lk"
+                    value={tenantForm.email}
+                    onChange={(e) => setTenantForm({ ...tenantForm, email: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Email Address</label>
-                <input
-                  type="email"
-                  placeholder="owner@abcmobile.lk"
-                  value={tenantForm.email}
-                  onChange={(e) => setTenantForm({ ...tenantForm, email: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none"
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+
+              <div className={`flex justify-end gap-3 pt-4 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                 <button
                   type="button"
                   onClick={() => setShowTenantModal(false)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700"
+                  className={`px-4 py-2 rounded-xl font-bold border ${
+                    isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold rounded-xl text-sm flex items-center gap-2"
+                  className="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-xl shadow-md shadow-teal-500/20"
                 >
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Save Company</span>
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Organization'}
                 </button>
               </div>
             </form>
@@ -434,116 +494,112 @@ export default function ShopsPage() {
         </div>
       )}
 
-      {/* Modal: Create Shop Branch */}
+      {/* Modal: Create Shop */}
       {showShopModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <h2 className="text-lg font-bold text-white">Create Shop Branch</h2>
-              <button onClick={() => setShowShopModal(false)} className="text-slate-400 hover:text-white">
+          <div className={`w-full max-w-lg rounded-3xl p-6 sm:p-7 border shadow-2xl ${
+            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className={`flex items-center justify-between pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+              <div className="flex items-center gap-2">
+                <Store className="w-5 h-5 text-sky-500" />
+                <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Create Shop Outlet
+                </h2>
+              </div>
+              <button onClick={() => setShowShopModal(false)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleCreateShop} className="space-y-4 mt-4">
+
+            <form onSubmit={handleCreateShop} className="space-y-4 mt-4 text-xs">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Parent Company Tenant</label>
+                <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Parent Organization *</label>
                 <select
-                  required
                   value={shopForm.tenant_id}
                   onChange={(e) => setShopForm({ ...shopForm, tenant_id: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none"
+                  className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                    isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                  }`}
+                  required
                 >
-                  <option value="">-- Select Parent Company --</option>
                   {tenants.map(t => (
                     <option key={t.id} value={t.id}>{t.company_name} ({t.tenant_code})</option>
                   ))}
                 </select>
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-semibold text-slate-400">Shop Code (Unique)</label>
-                    <button
-                      type="button"
-                      onClick={() => setShopForm(prev => ({ ...prev, shop_code: generateAutoShopCode(prev.shop_name, prev.city) }))}
-                      className="text-[11px] text-teal-400 hover:text-teal-300 flex items-center gap-1 font-medium"
-                    >
-                      <Wand2 className="w-3 h-3" />
-                      <span>Auto</span>
-                    </button>
-                  </div>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Branch Name *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. SHP-CMB-101"
-                    value={shopForm.shop_code}
-                    onChange={(e) => setShopForm({ ...shopForm, shop_code: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none uppercase font-mono tracking-wider"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Branch Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Majestic City Branch"
+                    placeholder="e.g. Flagship Store"
                     value={shopForm.shop_name}
-                    onChange={(e) => {
-                      const name = e.target.value;
-                      setShopForm(prev => ({
-                        ...prev,
-                        shop_name: name,
-                        shop_code: generateAutoShopCode(name, prev.city)
-                      }));
-                    }}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none"
+                    onChange={(e) => setShopForm({ ...shopForm, shop_name: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
                   />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">City</label>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Branch Code *</label>
                   <input
                     type="text"
-                    placeholder="Colombo 04"
+                    required
+                    value={shopForm.shop_code}
+                    onChange={(e) => setShopForm({ ...shopForm, shop_code: e.target.value.toUpperCase() })}
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none font-mono uppercase ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>City / Location</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Colombo"
                     value={shopForm.city}
-                    onChange={(e) => {
-                      const city = e.target.value;
-                      setShopForm(prev => ({
-                        ...prev,
-                        city: city,
-                        shop_code: generateAutoShopCode(prev.shop_name, city)
-                      }));
-                    }}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none"
+                    onChange={(e) => setShopForm({ ...shopForm, city: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
                   />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Branch Phone</label>
+                  <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Branch Phone</label>
                   <input
                     type="text"
-                    placeholder="+94 11 255 6677"
+                    placeholder="+94 11 234 5678"
                     value={shopForm.phone}
                     onChange={(e) => setShopForm({ ...shopForm, phone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none"
+                    className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    }`}
                   />
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+
+              <div className={`flex justify-end gap-3 pt-4 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                 <button
                   type="button"
                   onClick={() => setShowShopModal(false)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700"
+                  className={`px-4 py-2 rounded-xl font-bold border ${
+                    isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold rounded-xl text-sm flex items-center gap-2"
+                  className="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-xl shadow-md shadow-teal-500/20"
                 >
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Save Branch</span>
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Branch'}
                 </button>
               </div>
             </form>
