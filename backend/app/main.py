@@ -4,8 +4,11 @@ from app.config import settings
 from app.database import engine, Base
 from app.routers import license_router, admin_auth_router, admin_management_router
 
-# Auto-create tables in development
-Base.metadata.create_all(bind=engine)
+# Auto-create tables in development if needed
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as _e:
+    pass
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
