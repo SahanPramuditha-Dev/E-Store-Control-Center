@@ -395,12 +395,29 @@ def issue_license(req: LicenseIssueRequest, db: Session = Depends(get_db), admin
     shop = db.query(Shop).filter(Shop.id == req.shop_id).first()
     pkg = db.query(Package).filter(func.upper(func.trim(Package.code)) == clean_pkg_code).first()
 
+    # Fallback search by ID or name
+    if not pkg:
+        pkg = db.query(Package).filter(Package.name.ilike(f"%{clean_pkg_code}%")).first()
+
+    # If package still not in DB, auto-create it on the fly
+    if not pkg:
+        pkg_names = {
+            "STARTER": ("Starter Retail Plan", 35000.0),
+            "BUSINESS": ("Business Pro Plan", 95000.0),
+            "ENTERPRISE": ("Enterprise AI Suite", 250000.0),
+            "RETAIL": ("iStore Retail", 55000.0),
+            "BUSINESS_AI": ("iStore Business AI", 145000.0)
+        }
+        name, price = pkg_names.get(clean_pkg_code, (f"{clean_pkg_code} Plan", 95000.0))
+        pkg = Package(code=clean_pkg_code, name=name, price_lkr=price, is_active=True)
+        db.add(pkg)
+        db.commit()
+        db.refresh(pkg)
+
     if not tenant:
         raise HTTPException(status_code=404, detail=f"Tenant with ID {req.tenant_id} not found")
     if not shop:
         raise HTTPException(status_code=404, detail=f"Shop with ID {req.shop_id} not found")
-    if not pkg:
-        raise HTTPException(status_code=404, detail=f"Package with code '{req.package_code}' not found")
 
     import uuid
     key_prefix = f"ISTORE-{pkg.code}"
