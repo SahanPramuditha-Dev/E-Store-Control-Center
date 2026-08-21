@@ -60,7 +60,22 @@ export default function LicensesPage() {
       setLicenses(licRes.data);
       setTenants(tenantsRes.data);
       setShops(shopsRes.data);
-      setPackages(pkgRes.data.packages || []);
+      const pkgList = pkgRes.data.packages || [];
+      setPackages(pkgList);
+
+      // Auto-select first available tenant and shop if not set
+      if (tenantsRes.data.length > 0) {
+        const firstTenant = tenantsRes.data[0];
+        const firstShop = shopsRes.data.find(s => s.tenant_id === firstTenant.id);
+        const defaultPkg = pkgList.find(p => p.code === 'BUSINESS') || pkgList[0];
+        setIssueForm(prev => ({
+          ...prev,
+          tenant_id: prev.tenant_id || firstTenant.id.toString(),
+          shop_id: prev.shop_id || (firstShop ? firstShop.id.toString() : ''),
+          package_code: prev.package_code || (defaultPkg ? defaultPkg.code : 'BUSINESS'),
+          payment_amount: defaultPkg ? defaultPkg.price_lkr : prev.payment_amount
+        }));
+      }
     } catch (err) {
       console.error('Failed to load licenses', err);
     } finally {
