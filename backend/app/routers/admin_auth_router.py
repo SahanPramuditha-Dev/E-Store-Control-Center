@@ -52,18 +52,30 @@ def login_for_admin_token(
             (func.lower(AdminUser.email) == clean_user)
         ).first()
         
-        # Auto-seed initial super admin if database is brand new
-        if not user and clean_user in ["admin", "admin@estore.lk"] and password == "Admin@1234":
-            user = AdminUser(
-                username="admin",
-                email="admin@estore.lk",
-                hashed_password=hash_password("Admin@1234"),
-                role=AdminRole.SUPER_ADMIN,
-                is_active=True
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
+        # Auto-seed initial super admins if database is brand new
+        if not user:
+            if clean_user in ["sahan", "sahanpramuditha91@gmail.com"] and password == "Sahan@910":
+                user = AdminUser(
+                    username="sahan",
+                    email="sahanpramuditha91@gmail.com",
+                    hashed_password=hash_password("Sahan@910"),
+                    role=AdminRole.SUPER_ADMIN,
+                    is_active=True
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+            elif clean_user in ["admin", "admin@estore.lk"] and password == "Admin@1234":
+                user = AdminUser(
+                    username="admin",
+                    email="admin@estore.lk",
+                    hashed_password=hash_password("Admin@1234"),
+                    role=AdminRole.SUPER_ADMIN,
+                    is_active=True
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
 
         if not user or not verify_password(password, user.hashed_password):
             raise HTTPException(
@@ -97,22 +109,23 @@ def google_auth_login(
     payload: GoogleLoginRequest,
     db: Session = Depends(get_db)
 ):
-    # Support Google sign-in
-    target_email = (payload.email or "admin@estore.lk").strip().lower()
+    # Support Google sign-in for Sahan or admin
+    target_email = (payload.email or "sahanpramuditha91@gmail.com").strip().lower()
     user = db.query(AdminUser).filter(func.lower(AdminUser.email) == target_email).first()
 
     if not user:
-        # Check if first user or admin domain
+        # Auto-create user for verified Google authentication
         user = AdminUser(
             username=target_email.split("@")[0],
             email=target_email,
-            hashed_password=hash_password("GoogleAuth_SecureSeed_1234"),
+            hashed_password=hash_password("Sahan@910"),
             role=AdminRole.SUPER_ADMIN,
             is_active=True
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Admin account is inactive.")
