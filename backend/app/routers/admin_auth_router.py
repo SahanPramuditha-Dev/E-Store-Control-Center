@@ -27,42 +27,17 @@ class CreateAdminRequest(BaseModel):
     username: str
     email: str
     password: str
-class AdminLoginJSON(BaseModel):
-    username: Optional[str] = None
-    password: Optional[str] = None
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 @router.post("/login", response_model=TokenResponse)
-async def login_for_admin_token(
-    request: Request,
+def login_for_admin_token(
+    payload: LoginRequest,
     db: Session = Depends(get_db)
 ):
-    username = None
-    password = None
-
-    # Check for JSON body first
-    try:
-        data = await request.json()
-        username = data.get("username")
-        password = data.get("password")
-    except Exception:
-        pass
-
-    # Fallback to form-data / multipart
-    if not username:
-        try:
-            form = await request.form()
-            username = form.get("username")
-            password = form.get("password")
-        except Exception:
-            pass
-
-    if not username or not password:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username and password are required"
-        )
-
-    clean_user = username.strip().lower()
+    clean_user = payload.username.strip().lower()
+    password = payload.password
     user = db.query(AdminUser).filter(func.lower(AdminUser.username) == clean_user).first()
     
     # Auto-seed initial super admin if database is brand new
