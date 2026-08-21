@@ -1,26 +1,33 @@
 {
   "buildCommand": "npm --prefix frontend install && npm --prefix frontend run build",
   "outputDirectory": "frontend/dist",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/admin/:path*",
-      "destination": "/api/index.py"
+      "src": "/admin/(.*)",
+      "dest": "/api/index.py"
     },
     {
-      "source": "/license/:path*",
-      "destination": "/api/index.py"
+      "src": "/license/(.*)",
+      "dest": "/api/index.py"
     },
     {
-      "source": "/docs",
-      "destination": "/api/index.py"
+      "src": "/docs",
+      "dest": "/api/index.py"
     },
     {
-      "source": "/openapi.json",
-      "destination": "/api/index.py"
+      "src": "/openapi.json",
+      "dest": "/api/index.py"
     },
     {
-      "source": "/((?!api|admin|license|docs|openapi.json|assets).*)",
-      "destination": "/index.html"
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
