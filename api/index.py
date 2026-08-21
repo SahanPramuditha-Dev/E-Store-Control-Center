@@ -1,9 +1,4 @@
-import os
-import sys
-from pathlib import Path
+from backend.app.main import app
 
-# Add backend directory to sys.path
-backend_dir = Path(__file__).resolve().parent / "backend"
-sys.path.insert(0, str(backend_dir))
-
-from app.main import app
+# Vercel entrypoint handler for FastAPI
+handler = app
