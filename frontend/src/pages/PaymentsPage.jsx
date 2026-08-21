@@ -6,7 +6,9 @@ import {
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { formatDate } from '../utils/dateUtils';
 import InvoiceModal from '../components/InvoiceModal';
+
 
 export default function PaymentsPage() {
   const { showToast } = useToast();
@@ -331,9 +333,10 @@ export default function PaymentsPage() {
                     <td className="px-5 py-4 font-mono text-slate-400">
                       {p.reference_no || '—'}
                     </td>
-                    <td className="px-5 py-4 text-slate-400">
-                      {new Date(p.payment_date || p.created_at).toLocaleDateString()}
+                    <td className="px-5 py-4 text-slate-400 font-mono text-[11px]">
+                      {formatDate(p.payment_date || p.created_at)}
                     </td>
+
                     <td className="px-5 py-4 text-right">
                       <button
                         onClick={() => setSelectedInvoice(p)}

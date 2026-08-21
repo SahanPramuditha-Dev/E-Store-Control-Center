@@ -7,6 +7,8 @@ import {
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { formatRelativeTime, formatDateTime } from '../utils/dateUtils';
+
 
 export default function MachinesPage() {
   const { showToast } = useToast();
@@ -54,13 +56,9 @@ export default function MachinesPage() {
   };
 
   const getTimeAgo = (dateStr) => {
-    if (!dateStr) return 'Never';
-    const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-    if (diff < 60) return 'Just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)} mins ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
-    return `${Math.floor(diff / 86400)} days ago`;
+    return formatRelativeTime(dateStr);
   };
+
 
   const isOnline = (dateStr) => {
     if (!dateStr) return false;

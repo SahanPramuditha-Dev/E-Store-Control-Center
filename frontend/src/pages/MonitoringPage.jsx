@@ -6,6 +6,8 @@ import {
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { formatDateTime } from '../utils/dateUtils';
+
 
 export default function MonitoringPage() {
   const { showToast } = useToast();
@@ -152,9 +154,10 @@ export default function MonitoringPage() {
                     </span>
                   </td>
                   <td className="px-5 py-4 font-mono text-slate-400">{j.duration_seconds}s</td>
-                  <td className="px-5 py-4 text-slate-400">
-                    {j.last_run_at ? new Date(j.last_run_at).toLocaleString() : 'Never'}
+                  <td className="px-5 py-4 text-slate-400 font-mono text-[11px]">
+                    {j.last_run_at ? formatDateTime(j.last_run_at) : 'Never'}
                   </td>
+
                   <td className="px-5 py-4 text-right">
                     <button
                       onClick={() => handleTriggerJob(j)}

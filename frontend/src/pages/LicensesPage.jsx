@@ -7,7 +7,9 @@ import {
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 import TokenInspectorModal from '../components/TokenInspectorModal';
+
 
 export default function LicensesPage() {
   const { showToast } = useToast();
@@ -414,7 +416,7 @@ export default function LicensesPage() {
                           </button>
                         </div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                          Issued: {lic.issued_at ? new Date(lic.issued_at).toLocaleDateString() : '—'}
+                          Issued: {formatDate(lic.issued_at)}
                         </div>
                       </td>
 
@@ -458,9 +460,10 @@ export default function LicensesPage() {
 
                       <td className="px-5 py-4">
                         <div className="font-mono text-xs text-slate-400">
-                          {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString() : 'LIFETIME'}
+                          {lic.expires_at ? formatDate(lic.expires_at) : 'LIFETIME'}
                         </div>
                       </td>
+
 
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -895,9 +898,10 @@ export default function LicensesPage() {
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-white uppercase tracking-wider">{ev.event_type}</span>
                         <span className="text-[10px] text-slate-400 font-mono">
-                          {new Date(ev.created_at).toLocaleString()}
+                          {formatDateTime(ev.created_at)}
                         </span>
                       </div>
+
                       <p className="text-slate-300 mt-1">{ev.notes || 'Status transition event'}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5">Operator: <span className="text-slate-300 font-medium">{ev.actor || 'System'}</span></p>
                     </div>

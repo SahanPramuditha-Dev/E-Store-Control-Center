@@ -6,6 +6,8 @@ import {
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { formatDateTime } from '../utils/dateUtils';
+
 
 export default function AuditLogsPage() {
   const { showToast } = useToast();
@@ -218,9 +220,10 @@ export default function AuditLogsPage() {
                       {JSON.stringify(log.details)}
                     </td>
 
-                    <td className="px-5 py-4 text-slate-400 whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleString()}
+                    <td className="px-5 py-4 text-slate-400 whitespace-nowrap font-mono text-[11px]">
+                      {formatDateTime(log.created_at)}
                     </td>
+
 
                     <td className="px-5 py-4 text-right">
                       <button

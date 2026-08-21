@@ -109,6 +109,15 @@ def log_admin_action(db: Session, admin_id: int, action: str, entity_type: str, 
     )
     db.add(audit)
 
+def format_dt_utc(dt: Optional[datetime]) -> Optional[str]:
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+
 
 # --- Endpoints ---
 
@@ -1021,7 +1030,7 @@ def get_all_organizations(
             "shops_count": len(t.shops),
             "licenses_count": len(t.licenses),
             "current_plan": active_lic.package.name if (active_lic and active_lic.package) else "Community Trial",
-            "created_at": t.created_at.isoformat()
+            "created_at": format_dt_utc(t.created_at)
         })
     return results
 
@@ -1104,7 +1113,7 @@ def get_feature_flags(
         "rollout_percentage": f.rollout_percentage,
         "target_plans": f.target_plans_json or [],
         "target_orgs": f.target_orgs_json or [],
-        "created_at": f.created_at.isoformat()
+        "created_at": format_dt_utc(f.created_at)
     } for f in flags]
 
 @router.post("/feature-flags")
@@ -1186,7 +1195,7 @@ def get_support_tickets(
         "priority": t.priority.value,
         "status": t.status.value,
         "assigned_agent": t.assigned_agent,
-        "created_at": t.created_at.isoformat()
+        "created_at": format_dt_utc(t.created_at)
     } for t in tickets]
 
 @router.post("/support/tickets")
@@ -1251,7 +1260,7 @@ def get_announcements(
         "announcement_type": a.announcement_type.value,
         "target_type": a.target_type,
         "is_active": a.is_active,
-        "created_at": a.created_at.isoformat()
+        "created_at": format_dt_utc(a.created_at)
     } for a in ann]
 
 @router.post("/announcements")
@@ -1297,7 +1306,7 @@ def get_releases(
         "min_supported_version": r.min_supported_version,
         "is_mandatory": r.is_mandatory,
         "rollout_percentage": r.rollout_percentage,
-        "created_at": r.created_at.isoformat()
+        "created_at": format_dt_utc(r.created_at)
     } for r in releases]
 
 @router.post("/releases")
@@ -1357,8 +1366,9 @@ def get_background_jobs(
         "job_name": j.job_name,
         "status": j.status,
         "duration_seconds": j.duration_seconds,
-        "last_run_at": j.last_run_at.isoformat() if j.last_run_at else None
+        "last_run_at": format_dt_utc(j.last_run_at)
     } for j in jobs]
+
 
 @router.post("/monitoring/jobs/{job_id}/trigger")
 def trigger_background_job(
@@ -1461,7 +1471,7 @@ def get_activity_timeline(
             "entity": f"{log.entity_type} #{log.entity_id}",
             "actor": "Admin",
             "details": log.details_json,
-            "timestamp": log.created_at.isoformat()
+            "timestamp": format_dt_utc(log.created_at)
         })
     for ev in events:
         timeline.append({
@@ -1470,8 +1480,9 @@ def get_activity_timeline(
             "entity": f"License #{ev.license_id}",
             "actor": ev.actor,
             "details": ev.notes,
-            "timestamp": ev.created_at.isoformat()
+            "timestamp": format_dt_utc(ev.created_at)
         })
+
 
     # Sort descending
     timeline.sort(key=lambda x: x["timestamp"], reverse=True)

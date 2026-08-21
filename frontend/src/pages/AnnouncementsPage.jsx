@@ -7,6 +7,8 @@ import {
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { formatDate } from '../utils/dateUtils';
+
 
 export default function AnnouncementsPage() {
   const { showToast } = useToast();
@@ -117,8 +119,9 @@ export default function AnnouncementsPage() {
                   {ann.announcement_type}
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">
-                  {new Date(ann.created_at).toLocaleDateString()}
+                  {formatDate(ann.created_at)}
                 </span>
+
               </div>
 
               <div>

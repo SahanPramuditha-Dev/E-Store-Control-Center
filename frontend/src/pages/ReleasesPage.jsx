@@ -6,6 +6,8 @@ import {
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { formatDate } from '../utils/dateUtils';
+
 
 export default function ReleasesPage() {
   const { showToast } = useToast();
@@ -122,8 +124,9 @@ export default function ReleasesPage() {
                 </span>
               </div>
               <span className="text-[10px] font-mono text-slate-400">
-                {new Date(rel.created_at).toLocaleDateString()}
+                {formatDate(rel.created_at)}
               </span>
+
             </div>
 
             <div>

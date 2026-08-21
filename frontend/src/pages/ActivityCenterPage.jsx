@@ -6,6 +6,7 @@ import {
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { formatDateTime, formatRelativeTime } from '../utils/dateUtils';
 
 export default function ActivityCenterPage() {
   const { showToast } = useToast();
@@ -86,9 +87,15 @@ export default function ActivityCenterPage() {
                       </span>
                       <p className={`font-extrabold text-sm mt-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.entity}</p>
                     </div>
-                    <span className="text-[11px] font-mono text-slate-400">
-                      {new Date(item.timestamp).toLocaleTimeString()} • {new Date(item.timestamp).toLocaleDateString()}
-                    </span>
+                    <div className="text-right">
+                      <div className="text-[11px] font-mono text-teal-400 font-bold">
+                        {formatDateTime(item.timestamp)}
+                      </div>
+                      <div className="text-[10px] font-mono text-slate-400">
+                        {formatRelativeTime(item.timestamp)}
+                      </div>
+                    </div>
+
                   </div>
 
                   {item.details && (

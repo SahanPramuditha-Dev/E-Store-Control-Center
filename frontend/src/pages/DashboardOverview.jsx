@@ -7,7 +7,9 @@ import {
 } from 'lucide-react';
 import api from '../api';
 import { useTheme } from '../components/ThemeContext';
+import { formatDate } from '../utils/dateUtils';
 import OnboardingModal from '../components/OnboardingModal';
+
 
 export default function DashboardOverview() {
   const [stats, setStats] = useState(null);
@@ -405,9 +407,10 @@ export default function DashboardOverview() {
                     </td>
                     <td className="px-4 py-3 font-medium">{pmt.payment_method}</td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-400">{pmt.reference_no || '—'}</td>
-                    <td className="px-4 py-3 text-slate-400">
-                      {new Date(pmt.created_at).toLocaleDateString()}
+                    <td className="px-4 py-3 text-slate-400 font-mono text-[11px]">
+                      {formatDate(pmt.created_at)}
                     </td>
+
                   </tr>
                 ))}
               </tbody>
