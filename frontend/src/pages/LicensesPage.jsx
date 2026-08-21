@@ -438,12 +438,29 @@ export default function LicensesPage() {
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Package Plan</label>
                   <select
                     value={issueForm.package_code}
-                    onChange={(e) => setIssueForm({ ...issueForm, package_code: e.target.value })}
+                    onChange={(e) => {
+                      const p = packages.find(pkg => pkg.code === e.target.value);
+                      setIssueForm({ 
+                        ...issueForm, 
+                        package_code: e.target.value,
+                        payment_amount: p ? p.price_lkr : issueForm.payment_amount
+                      });
+                    }}
                     className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-teal-500 focus:outline-none font-semibold"
                   >
-                    <option value="RETAIL">RETAIL (~LKR 55,000)</option>
-                    <option value="BUSINESS">BUSINESS (~LKR 95,000)</option>
-                    <option value="BUSINESS_AI">BUSINESS AI (~LKR 145,000)</option>
+                    {packages.length > 0 ? (
+                      packages.map(p => (
+                        <option key={p.code} value={p.code}>{p.name} (~LKR {p.price_lkr?.toLocaleString()})</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="STARTER">STARTER (~LKR 35,000)</option>
+                        <option value="BUSINESS">BUSINESS (~LKR 95,000)</option>
+                        <option value="ENTERPRISE">ENTERPRISE (~LKR 250,000)</option>
+                        <option value="RETAIL">RETAIL (~LKR 55,000)</option>
+                        <option value="BUSINESS_AI">BUSINESS AI (~LKR 145,000)</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div>
