@@ -390,9 +390,10 @@ def get_license_history(license_id: int, db: Session = Depends(get_db), admin: A
 
 @router.post("/licenses")
 def issue_license(req: LicenseIssueRequest, db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
+    clean_pkg_code = req.package_code.strip().upper()
     tenant = db.query(Tenant).filter(Tenant.id == req.tenant_id).first()
     shop = db.query(Shop).filter(Shop.id == req.shop_id).first()
-    pkg = db.query(Package).filter(Package.code == req.package_code.upper()).first()
+    pkg = db.query(Package).filter(func.upper(func.trim(Package.code)) == clean_pkg_code).first()
 
     if not tenant:
         raise HTTPException(status_code=404, detail=f"Tenant with ID {req.tenant_id} not found")
