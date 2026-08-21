@@ -1,8 +1,9 @@
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import hashlib
+import hmac
+import secrets
 from jose import jwt, JWTError
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -11,17 +12,31 @@ from app.config import settings
 from app.database import get_db
 from app.models import AdminUser, AdminRole
 
-# PBKDF2 sha256 provides stable, zero-wrap-bug hashing across Python 3.12+
-pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/admin/auth/login")
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """Standard PBKDF2-HMAC-SHA256 hasher using Python's built-in hashlib (zero C-extension crash on serverless)."""
+    salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100_000)
+    return f"pbkdf2_sha256$100000${salt}${key.hex()}"
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     if not hashed_password or not plain_password:
         return False
     try:
+        # Handle standard hashlib pbkdf2 format: pbkdf2_sha256$rounds$salt$hash
+        if hashed_password.startswith("pbkdf2_sha256$"):
+            parts = hashed_password.split("$")
+            if len(parts) == 4:
+                rounds = int(parts[1])
+                salt = parts[2]
+                target_hash = parts[3]
+                calc = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), rounds)
+                return hmac.compare_digest(calc.hex(), target_hash)
+        
+        # Fallback passlib verify
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
         return pwd_context.verify(plain_password, hashed_password)
     except Exception:
         return False
@@ -59,7 +74,7 @@ def require_role(allowed_roles: list[AdminRole]):
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Operation not permitted for role {current_user.role.value}"
+                detail="Operation not permitted for current user role"
             )
         return current_user
     return role_checker
