@@ -18,8 +18,13 @@ class Settings:
     PROJECT_NAME: str = os.getenv("PROJECT_NAME", "E-Store License Platform")
     API_V1_STR: str = "/api/v1"
     
-    # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_SQLITE_PATH}")
+    # Database - supports native Vercel Supabase integration variables
+    DATABASE_URL: str = (
+        os.getenv("DATABASE_URL")
+        or os.getenv("POSTGRES_PRISMA_URL")
+        or os.getenv("POSTGRES_URL")
+        or f"sqlite:///{DEFAULT_SQLITE_PATH}"
+    )
     
     # Cryptography - Ed25519 Keys
     ED25519_PRIVATE_KEY_B64: Optional[str] = os.getenv("ED25519_PRIVATE_KEY_B64", None)
