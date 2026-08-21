@@ -63,7 +63,9 @@ class LicenseService:
         """
         Validates unactivated or active license, binds machine, records activation & license events.
         """
-        license_obj = db.query(License).filter(License.license_key == license_key).first()
+        from sqlalchemy import func
+        clean_key = license_key.strip().upper()
+        license_obj = db.query(License).filter(func.upper(func.trim(License.license_key)) == clean_key).first()
         if not license_obj:
             return False, "Invalid license key", None
 
@@ -158,7 +160,9 @@ class LicenseService:
         """
         Called periodically by client ERP to sync license health and renew signed offline token.
         """
-        license_obj = db.query(License).filter(License.license_key == license_key).first()
+        from sqlalchemy import func
+        clean_key = license_key.strip().upper()
+        license_obj = db.query(License).filter(func.upper(func.trim(License.license_key)) == clean_key).first()
         if not license_obj:
             return False, "License not found", None
 
