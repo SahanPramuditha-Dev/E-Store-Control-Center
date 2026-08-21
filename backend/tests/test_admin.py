@@ -58,13 +58,13 @@ def test_admin_login_and_crud_flow():
     client = TestClient(app)
 
     # 1. Login
-    login_res = client.post("/api/v1/admin/auth/login", data={
+    login_res = client.post("/api/v1/admin/auth/login", json={
         "username": "superadmin",
         "password": "admin1234"
     })
     # Also test without api/v1 prefix router mount
     if login_res.status_code == 404:
-        login_res = client.post("/admin/auth/login", data={
+        login_res = client.post("/admin/auth/login", json={
             "username": "superadmin",
             "password": "admin1234"
         })
@@ -123,3 +123,30 @@ def test_admin_login_and_crud_flow():
     assert stats["total_shops"] == 1
     assert stats["total_licenses"] == 1
     assert stats["total_revenue_lkr"] == 55000.0
+
+    # 7. Test Rapid Single-Step Onboarding
+    onboard_res = client.post("/admin/onboard", headers=headers, json={
+        "tenant_code": "APEX-INC",
+        "company_name": "Apex Digital Inc",
+        "contact_name": "Kasun Perera",
+        "phone": "+94719998888",
+        "email": "kasun@apex.lk",
+        "shop_code": "APEX-COLOMBO",
+        "shop_name": "Apex Colombo Hub",
+        "city": "Colombo",
+        "package_code": "RETAIL",
+        "validity_days": 365,
+        "payment_amount": 55000.0,
+        "payment_method": "CASH"
+    })
+    assert onboard_res.status_code == 200
+    onboard_data = onboard_res.json()
+    assert onboard_data["success"] is True
+    assert "ISTORE-RETAIL" in onboard_data["license_key"]
+
+    # 8. Test Global Search
+    search_res = client.get("/admin/search?q=Apex", headers=headers)
+    assert search_res.status_code == 200
+    search_data = search_res.json()
+    assert len(search_data["tenants"]) > 0
+

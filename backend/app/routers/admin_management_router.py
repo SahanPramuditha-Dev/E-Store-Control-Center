@@ -73,6 +73,28 @@ class PackageUpdateRequest(BaseModel):
     price_lkr: Optional[float] = None
     feature_codes: Optional[List[str]] = None
 
+class OnboardingRequest(BaseModel):
+    tenant_code: str
+    company_name: str
+    contact_name: str
+    phone: str
+    email: Optional[str] = None
+    address: Optional[str] = None
+    shop_code: str
+    shop_name: str
+    city: Optional[str] = None
+    package_code: str = "BUSINESS"
+    license_type: LicenseType = LicenseType.ANNUAL
+    validity_days: int = 365
+    max_machines: int = 1
+    payment_amount: Optional[float] = None
+    payment_method: Optional[str] = "BANK_TRANSFER"
+    payment_reference: Optional[str] = None
+
+class MachineStatusUpdateRequest(BaseModel):
+    status: MachineStatus
+    reason: Optional[str] = None
+
 def log_admin_action(db: Session, admin_id: int, action: str, entity_type: str, entity_id: str, details: dict = None):
     audit = AuditLog(
         admin_user_id=admin_id,
@@ -82,6 +104,7 @@ def log_admin_action(db: Session, admin_id: int, action: str, entity_type: str, 
         details_json=details or {}
     )
     db.add(audit)
+
 
 # --- Endpoints ---
 
@@ -719,3 +742,248 @@ def list_audit_logs(
             "created_at": a.created_at.isoformat()
         } for a in logs
     ]
+
+# 9. Global Quick Search (Ctrl+K Command Palette)
+@router.get("/search")
+def global_search(
+    q: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin)
+):
+    query_str = f"%{q.strip()}%"
+    
+    tenants = db.query(Tenant).filter(
+        (Tenant.company_name.ilike(query_str)) |
+        (Tenant.tenant_code.ilike(query_str)) |
+        (Tenant.contact_name.ilike(query_str)) |
+        (Tenant.phone.ilike(query_str))
+    ).limit(5).all()
+
+    shops = db.query(Shop).filter(
+        (Shop.shop_name.ilike(query_str)) |
+        (Shop.shop_code.ilike(query_str)) |
+        (Shop.city.ilike(query_str))
+    ).limit(5).all()
+
+    licenses = db.query(License).filter(
+        License.license_key.ilike(query_str)
+    ).limit(5).all()
+
+    machines = db.query(Machine).filter(
+        (Machine.machine_name.ilike(query_str)) |
+        (Machine.machine_fingerprint.ilike(query_str))
+    ).limit(5).all()
+
+    return {
+        "tenants": [
+            {
+                "id": t.id,
+                "title": t.company_name,
+                "subtitle": f"Tenant Code: {t.tenant_code} • {t.phone}",
+                "type": "tenant",
+                "link": f"/shops?tenant_id={t.id}"
+            } for t in tenants
+        ],
+        "shops": [
+            {
+                "id": s.id,
+                "title": s.shop_name,
+                "subtitle": f"Shop Code: {s.shop_code} • {s.tenant.company_name}",
+                "type": "shop",
+                "link": f"/shops?shop_id={s.id}"
+            } for s in shops
+        ],
+        "licenses": [
+            {
+                "id": l.id,
+                "title": l.license_key,
+                "subtitle": f"{l.package.code} • {l.shop.shop_name} ({l.status.value})",
+                "type": "license",
+                "link": f"/licenses?license_id={l.id}"
+            } for l in licenses
+        ],
+        "machines": [
+            {
+                "id": m.id,
+                "title": m.machine_name or m.machine_fingerprint[:16],
+                "subtitle": f"{m.shop.shop_name} • App v{m.app_version or '1.0'}",
+                "type": "machine",
+                "link": f"/machines?machine_id={m.id}"
+            } for m in machines
+        ]
+    }
+
+# 10. Rapid Single-Step Onboarding
+@router.post("/onboard")
+def rapid_onboard(
+    req: OnboardingRequest,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin)
+):
+    import uuid
+
+    # 1. Create or retrieve Tenant
+    existing_tenant = db.query(Tenant).filter(Tenant.tenant_code == req.tenant_code.upper().strip()).first()
+    if existing_tenant:
+        tenant = existing_tenant
+    else:
+        tenant = Tenant(
+            tenant_code=req.tenant_code.upper().strip(),
+            company_name=req.company_name.strip(),
+            contact_name=req.contact_name.strip(),
+            phone=req.phone.strip(),
+            email=req.email,
+            address=req.address
+        )
+        db.add(tenant)
+        db.flush()
+
+    # 2. Create Shop
+    existing_shop = db.query(Shop).filter(Shop.shop_code == req.shop_code.upper().strip()).first()
+    if existing_shop:
+        shop = existing_shop
+    else:
+        shop = Shop(
+            tenant_id=tenant.id,
+            shop_code=req.shop_code.upper().strip(),
+            shop_name=req.shop_name.strip(),
+            city=req.city,
+            phone=req.phone
+        )
+        db.add(shop)
+        db.flush()
+
+    # 3. Package
+    clean_pkg_code = req.package_code.strip().upper()
+    pkg = db.query(Package).filter(func.upper(func.trim(Package.code)) == clean_pkg_code).first()
+    if not pkg:
+        pkg_names = {
+            "STARTER": ("Starter Retail Plan", 35000.0),
+            "BUSINESS": ("Business Pro Plan", 95000.0),
+            "ENTERPRISE": ("Enterprise AI Suite", 250000.0),
+            "RETAIL": ("iStore Retail", 55000.0),
+            "BUSINESS_AI": ("iStore Business AI", 145000.0)
+        }
+        name, price = pkg_names.get(clean_pkg_code, (f"{clean_pkg_code} Plan", 95000.0))
+        pkg = Package(code=clean_pkg_code, name=name, price_lkr=price, is_active=True)
+        db.add(pkg)
+        db.flush()
+
+    # 4. Generate License
+    key_prefix = f"ISTORE-{pkg.code}"
+    random_part = uuid.uuid4().hex[:12].upper()
+    license_key = f"{key_prefix}-{random_part[:4]}-{random_part[4:8]}-{random_part[8:]}"
+
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=req.validity_days) if req.license_type != LicenseType.LIFETIME else None
+
+    license_obj = License(
+        license_key=license_key,
+        tenant_id=tenant.id,
+        shop_id=shop.id,
+        package_id=pkg.id,
+        license_type=req.license_type,
+        status=LicenseStatus.ACTIVE,
+        issued_at=now,
+        starts_at=now,
+        expires_at=expires_at,
+        max_machines=req.max_machines
+    )
+    db.add(license_obj)
+    db.flush()
+
+    event = LicenseEvent(
+        license_id=license_obj.id,
+        event_type=LicenseEventType.CREATED,
+        from_state=None,
+        to_state=LicenseStatus.ACTIVE.value,
+        actor=admin.username,
+        notes=f"Auto-issued during rapid onboarding for {tenant.company_name} ({shop.shop_name})"
+    )
+    db.add(event)
+
+    # 5. Optional Payment
+    payment_id = None
+    if req.payment_amount and req.payment_amount > 0:
+        payment = Payment(
+            tenant_id=tenant.id,
+            shop_id=shop.id,
+            license_id=license_obj.id,
+            amount_lkr=req.payment_amount,
+            payment_type=PaymentType.INITIAL,
+            payment_method=req.payment_method or "BANK_TRANSFER",
+            reference_no=req.payment_reference,
+            notes="Initial Onboarding Payment"
+        )
+        db.add(payment)
+        db.flush()
+        payment_id = payment.id
+
+    log_admin_action(db, admin.id, "RAPID_ONBOARD", "TENANT", tenant.id, {
+        "company": tenant.company_name,
+        "shop": shop.shop_name,
+        "license_key": license_obj.license_key,
+        "amount": req.payment_amount
+    })
+    db.commit()
+
+    return {
+        "success": True,
+        "tenant_id": tenant.id,
+        "shop_id": shop.id,
+        "license_id": license_obj.id,
+        "license_key": license_obj.license_key,
+        "package_code": pkg.code,
+        "expires_at": license_obj.expires_at.isoformat() if license_obj.expires_at else None,
+        "payment_id": payment_id
+    }
+
+# 11. Cryptographic License Token Inspector / Offline Token Export
+@router.get("/licenses/{license_id}/export-token")
+def export_license_token(
+    license_id: int,
+    machine_fingerprint: Optional[str] = None,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin)
+):
+    lic = db.query(License).filter(License.id == license_id).first()
+    if not lic:
+        raise HTTPException(status_code=404, detail="License not found")
+
+    fp = machine_fingerprint or "OFFLINE-STANDALONE-DEFAULT-FP"
+    signed_token = LicenseService.generate_signed_token_for_license(db, lic, fp)
+
+    return {
+        "license_id": lic.id,
+        "license_key": lic.license_key,
+        "tenant_name": lic.tenant.company_name,
+        "shop_name": lic.shop.shop_name,
+        "payload": signed_token.payload.dict(),
+        "signature": signed_token.signature,
+        "token_format": "Ed25519-Signed-JSON"
+    }
+
+# 12. Update Machine Status (Lock, Reset, Deactivate)
+@router.post("/machines/{machine_id}/status")
+def update_machine_status(
+    machine_id: int,
+    req: MachineStatusUpdateRequest,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin)
+):
+    machine = db.query(Machine).filter(Machine.id == machine_id).first()
+    if not machine:
+        raise HTTPException(status_code=404, detail="Machine not found")
+
+    old_status = machine.status.value
+    machine.status = req.status
+
+    log_admin_action(db, admin.id, f"MACHINE_{req.status.value}", "MACHINE", machine.id, {
+        "fingerprint": machine.machine_fingerprint,
+        "old_status": old_status,
+        "new_status": req.status.value,
+        "reason": req.reason
+    })
+    db.commit()
+    return {"success": True, "message": f"Machine status updated to {req.status.value}"}
+

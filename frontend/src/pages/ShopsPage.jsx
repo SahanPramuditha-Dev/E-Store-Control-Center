@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Store, Plus, Search, Building2, MapPin, Phone, Mail, RefreshCw, X, Loader2, Wand2, Users } from 'lucide-react';
 import api from '../api';
 
+import { useToast } from '../components/ToastContext';
+
 export default function ShopsPage() {
+  const { showToast } = useToast();
   const [tenants, setTenants] = useState([]);
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +89,7 @@ export default function ShopsPage() {
       setTenants(tenantsRes.data);
       setShops(shopsRes.data);
     } catch (err) {
-      console.error('Failed to load data', err);
+      showToast('Failed to load tenants and shops', 'error');
     } finally {
       setLoading(false);
     }
@@ -101,11 +104,12 @@ export default function ShopsPage() {
     setSubmitting(true);
     try {
       await api.post('/admin/tenants', tenantForm);
+      showToast('Tenant organization created successfully.', 'success');
       setShowTenantModal(false);
       await fetchData();
       setActiveTab('companies');
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to create tenant');
+      showToast(err.response?.data?.detail || 'Failed to create tenant', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -117,17 +121,19 @@ export default function ShopsPage() {
     try {
       await api.post('/admin/shops', {
         ...shopForm,
-        tenant_id: parseInt(shopForm.tenant_id)
+        tenant_id: parseInt(shopForm.tenant_id, 10)
       });
+      showToast('Branch shop created successfully.', 'success');
       setShowShopModal(false);
       await fetchData();
       setActiveTab('shops');
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to create shop');
+      showToast(err.response?.data?.detail || 'Failed to create shop', 'error');
     } finally {
       setSubmitting(false);
     }
   };
+
 
   const filteredTenants = tenants.filter(t =>
     t.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||

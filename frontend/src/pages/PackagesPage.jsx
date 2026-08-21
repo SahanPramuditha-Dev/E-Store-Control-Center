@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Package, Check, RefreshCw, Sparkles, Shield, Cpu, Edit3, X, Loader2 } from 'lucide-react';
 import api from '../api';
+import { useToast } from '../components/ToastContext';
 
 export default function PackagesPage() {
+  const { showToast } = useToast();
   const [packages, setPackages] = useState([]);
   const [allFeatures, setAllFeatures] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +27,7 @@ export default function PackagesPage() {
       setPackages(res.data.packages || []);
       setAllFeatures(res.data.all_features || []);
     } catch (err) {
-      console.error('Failed to load packages', err);
+      showToast('Failed to load packages and tiers.', 'error');
     } finally {
       setLoading(false);
     }
@@ -65,14 +67,16 @@ export default function PackagesPage() {
         ...editForm,
         price_lkr: parseFloat(editForm.price_lkr)
       });
+      showToast('Package tier and feature flags updated successfully.', 'success');
       setShowEditModal(false);
       fetchPackages();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to update package');
+      showToast(err.response?.data?.detail || 'Failed to update package', 'error');
     } finally {
       setSubmitting(false);
     }
   };
+
 
   const getTierDetails = (code) => {
     switch (code) {

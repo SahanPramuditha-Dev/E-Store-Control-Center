@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastProvider } from './components/ToastContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardOverview from './pages/DashboardOverview';
@@ -16,39 +17,41 @@ export default function App() {
   });
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            isAuthenticated ? (
-              <Navigate to="/" replace />
-            ) : (
-              <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />
-            )
-          }
-        />
+    <ToastProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : (
+                <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />
+              )
+            }
+          />
 
-        <Route
-          element={
-            isAuthenticated ? (
-              <Layout onLogout={() => setIsAuthenticated(false)} />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        >
-          <Route path="/" element={<DashboardOverview />} />
-          <Route path="/shops" element={<ShopsPage />} />
-          <Route path="/licenses" element={<LicensesPage />} />
-          <Route path="/packages" element={<PackagesPage />} />
-          <Route path="/machines" element={<MachinesPage />} />
-          <Route path="/payments" element={<PaymentsPage />} />
-          <Route path="/audit-logs" element={<AuditLogsPage />} />
-        </Route>
+          <Route
+            element={
+              isAuthenticated ? (
+                <Layout onLogout={() => setIsAuthenticated(false)} />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          >
+            <Route path="/" element={<DashboardOverview />} />
+            <Route path="/shops" element={<ShopsPage />} />
+            <Route path="/licenses" element={<LicensesPage />} />
+            <Route path="/packages" element={<PackagesPage />} />
+            <Route path="/machines" element={<MachinesPage />} />
+            <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/audit-logs" element={<AuditLogsPage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }
