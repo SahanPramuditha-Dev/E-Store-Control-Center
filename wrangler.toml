@@ -1,3 +1,5 @@
 name = "e-store-control-center"
-pages_build_output_dir = "frontend/dist"
 compatibility_date = "2026-08-20"
+
+[assets]
+directory = "frontend/dist"
