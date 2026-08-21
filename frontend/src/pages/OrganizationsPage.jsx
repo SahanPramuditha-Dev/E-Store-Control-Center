@@ -23,13 +23,15 @@ export default function OrganizationsPage() {
     try {
       setLoading(true);
       const res = await api.get('/admin/organizations');
-      setOrganizations(res.data);
+      setOrganizations(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      showToast('Failed to load organizations', 'error');
+      console.error('Error loading organizations:', err);
+      showToast(err.response?.data?.detail || 'Failed to load organizations', 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchOrganizations();

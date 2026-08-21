@@ -18,13 +18,14 @@ export default function ActivityCenterPage() {
     try {
       setLoading(true);
       const res = await api.get('/admin/activity/timeline?limit=50');
-      setTimeline(res.data);
+      setTimeline(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      showToast('Failed to load activity timeline', 'error');
+      showToast(err.response?.data?.detail || 'Failed to load activity timeline', 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchTimeline();

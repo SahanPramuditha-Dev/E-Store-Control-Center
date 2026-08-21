@@ -29,13 +29,14 @@ export default function FeatureFlagsPage() {
     try {
       setLoading(true);
       const res = await api.get('/admin/feature-flags');
-      setFlags(res.data);
+      setFlags(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      showToast('Failed to load feature flags', 'error');
+      showToast(err.response?.data?.detail || 'Failed to load feature flags', 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchFlags();

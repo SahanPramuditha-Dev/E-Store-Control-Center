@@ -31,17 +31,19 @@ export default function SupportPage() {
         api.get('/admin/support/tickets'),
         api.get('/admin/organizations')
       ]);
-      setTickets(tRes.data);
-      setOrganizations(orgRes.data);
-      if (orgRes.data.length > 0 && !form.tenant_id) {
-        setForm(prev => ({ ...prev, tenant_id: orgRes.data[0].id.toString() }));
+      setTickets(Array.isArray(tRes.data) ? tRes.data : []);
+      const orgList = Array.isArray(orgRes.data) ? orgRes.data : [];
+      setOrganizations(orgList);
+      if (orgList.length > 0 && !form.tenant_id) {
+        setForm(prev => ({ ...prev, tenant_id: orgList[0].id.toString() }));
       }
     } catch (err) {
-      showToast('Failed to load support tickets', 'error');
+      showToast(err.response?.data?.detail || 'Failed to load support tickets', 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchData();

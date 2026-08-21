@@ -24,13 +24,14 @@ export default function MonitoringPage() {
         api.get('/admin/monitoring/jobs')
       ]);
       setHealth(hRes.data);
-      setJobs(jRes.data);
+      setJobs(Array.isArray(jRes.data) ? jRes.data : []);
     } catch (err) {
-      showToast('Failed to load system monitoring status', 'error');
+      showToast(err.response?.data?.detail || 'Failed to load system monitoring status', 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchMonitoringData();

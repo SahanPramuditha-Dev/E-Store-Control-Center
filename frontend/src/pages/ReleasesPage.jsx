@@ -31,13 +31,14 @@ export default function ReleasesPage() {
     try {
       setLoading(true);
       const res = await api.get('/admin/releases');
-      setReleases(res.data);
+      setReleases(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      showToast('Failed to load POS releases', 'error');
+      showToast(err.response?.data?.detail || 'Failed to load POS releases', 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchReleases();

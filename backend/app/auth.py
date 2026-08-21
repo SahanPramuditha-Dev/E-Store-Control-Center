@@ -64,10 +64,26 @@ def get_current_admin(
     except JWTError:
         raise credentials_exception
 
-    user = db.query(AdminUser).filter(AdminUser.username == username, AdminUser.is_active == True).first()
+    # Support impersonation sessions
+    if username.startswith("impersonate_"):
+        parts = username.split("_")
+        if len(parts) >= 2:
+            operator_name = parts[1]
+            user = db.query(AdminUser).filter(
+                (AdminUser.username == operator_name) | (AdminUser.email == operator_name),
+                AdminUser.is_active == True
+            ).first()
+            if user:
+                return user
+
+    user = db.query(AdminUser).filter(
+        (AdminUser.username == username) | (AdminUser.email == username),
+        AdminUser.is_active == True
+    ).first()
     if user is None:
         raise credentials_exception
     return user
+
 
 def require_role(allowed_roles: list[AdminRole]):
     def role_checker(current_user: AdminUser = Depends(get_current_admin)):

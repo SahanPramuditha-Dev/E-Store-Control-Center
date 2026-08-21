@@ -29,13 +29,14 @@ export default function AnnouncementsPage() {
     try {
       setLoading(true);
       const res = await api.get('/admin/announcements');
-      setAnnouncements(res.data);
+      setAnnouncements(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      showToast('Failed to load announcements', 'error');
+      showToast(err.response?.data?.detail || 'Failed to load announcements', 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchAnnouncements();
