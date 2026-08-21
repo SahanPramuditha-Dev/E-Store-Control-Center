@@ -17,11 +17,10 @@ export default function LoginPage({ onLoginSuccess }) {
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('username', username);
-      formData.append('password', password);
-
-      const res = await api.post('/admin/auth/login', formData);
+      const res = await api.post('/admin/auth/login', {
+        username: username.trim(),
+        password: password
+      });
       localStorage.setItem('estore_admin_token', res.data.access_token);
       localStorage.setItem('estore_admin_user', JSON.stringify({
         username: res.data.username,
