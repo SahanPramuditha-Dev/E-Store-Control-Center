@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import Optional
@@ -27,15 +27,43 @@ class CreateAdminRequest(BaseModel):
     username: str
     email: str
     password: str
-    role: Optional[AdminRole] = AdminRole.ADMIN
+class AdminLoginJSON(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
 
 @router.post("/login", response_model=TokenResponse)
-def login_for_admin_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+async def login_for_admin_token(
+    request: Request,
     db: Session = Depends(get_db)
 ):
-    user = db.query(AdminUser).filter(AdminUser.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    username = None
+    password = None
+
+    # Check for JSON body first
+    try:
+        data = await request.json()
+        username = data.get("username")
+        password = data.get("password")
+    except Exception:
+        pass
+
+    # Fallback to form-data / multipart
+    if not username:
+        try:
+            form = await request.form()
+            username = form.get("username")
+            password = form.get("password")
+        except Exception:
+            pass
+
+    if not username or not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username and password are required"
+        )
+
+    user = db.query(AdminUser).filter(AdminUser.username == username.strip()).first()
+    if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
