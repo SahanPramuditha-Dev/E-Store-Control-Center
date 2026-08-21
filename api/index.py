@@ -9,6 +9,5 @@ if str(backend_dir) not in sys.path:
 
 from app.main import app
 
-# Vercel ASGI handler
-handler = app
+# Export for Vercel Serverless
 app = app
