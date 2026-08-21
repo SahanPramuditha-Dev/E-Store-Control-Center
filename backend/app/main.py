@@ -35,6 +35,15 @@ app.include_router(license_router.router)
 app.include_router(admin_auth_router.router)
 app.include_router(admin_management_router.router)
 
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "service": settings.PROJECT_NAME,
+        "schema_version": settings.CURRENT_LICENSE_SCHEMA_VERSION,
+        "docs_url": "/docs"
+    }
+
 @app.get("/api/health")
 def health_check():
     return {
