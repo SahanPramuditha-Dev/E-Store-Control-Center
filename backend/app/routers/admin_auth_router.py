@@ -64,6 +64,20 @@ async def login_for_admin_token(
 
     clean_user = username.strip().lower()
     user = db.query(AdminUser).filter(func.lower(AdminUser.username) == clean_user).first()
+    
+    # Auto-seed initial super admin if database is brand new
+    if not user and clean_user == "admin" and password == "Admin@1234":
+        user = AdminUser(
+            username="admin",
+            email="admin@estore.lk",
+            hashed_password=hash_password("Admin@1234"),
+            role=AdminRole.SUPER_ADMIN,
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
