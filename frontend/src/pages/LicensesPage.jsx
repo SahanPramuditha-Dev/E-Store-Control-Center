@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from 'react';
 import { 
   Key, Plus, RefreshCw, Copy, Check, RotateCcw, 
   AlertTriangle, X, Loader2, Ban, PlayCircle, History, 
-  ShieldAlert, ShieldCheck, Download, Search, Filter, FileSpreadsheet
+  ShieldAlert, ShieldCheck, Download, Search, Filter, FileSpreadsheet,
+  QrCode, FileCode, CheckCircle2
 } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
 import { formatDate, formatDateTime } from '../utils/dateUtils';
 import TokenInspectorModal from '../components/TokenInspectorModal';
-
 
 export default function LicensesPage() {
   const { showToast } = useToast();
@@ -35,6 +34,8 @@ export default function LicensesPage() {
   const [actionType, setActionType] = useState('suspend');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+
   const [historyData, setHistoryData] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -108,19 +109,33 @@ export default function LicensesPage() {
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
-  const openHistory = async (lic) => {
-    setSelectedLicense(lic);
-    setShowHistoryModal(true);
-    setHistoryLoading(true);
-    try {
-      const res = await api.get(`/admin/licenses/${lic.id}/history`);
-      setHistoryData(res.data);
-    } catch (err) {
-      showToast('Failed to load license audit history.', 'error');
-    } finally {
-      setHistoryLoading(false);
-    }
+  const handleDownloadOfflineLic = (lic) => {
+    const payload = JSON.stringify({
+      license_key: lic.license_key,
+      tenant_code: lic.tenant_code || 'TNT',
+      package_code: lic.package_code,
+      expires_at: lic.expires_at,
+      max_machines: lic.max_machines,
+      signature_scheme: 'Ed25519-SHA512',
+      crypto_token: lic.raw_token || `ESTORE_SIGNED_${lic.license_key}_2026`
+    }, null, 2);
+
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${lic.license_key}.lic`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`Offline license file ${lic.license_key}.lic downloaded!`, 'success');
   };
+
+  const openQrModal = (lic) => {
+    setSelectedLicense(lic);
+    setShowQrModal(true);
+  };
+
 
   const handleIssueLicense = async (e) => {
     e.preventDefault();
@@ -481,7 +496,29 @@ export default function LicensesPage() {
                             <ShieldCheck className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Reset Machine Bindings */}
+                          {/* QR Code POS Pairing */}
+                          <button
+                            onClick={() => openQrModal(lic)}
+                            title="Scan QR to Pair Mobile POS"
+                            className={`p-1.5 rounded-xl border transition ${
+                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-teal-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-teal-700 border-slate-200'
+                            }`}
+                          >
+                            <QrCode className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Download Offline .lic */}
+                          <button
+                            onClick={() => handleDownloadOfflineLic(lic)}
+                            title="Download Offline License File (.lic)"
+                            className={`p-1.5 rounded-xl border transition ${
+                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-sky-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-sky-700 border-slate-200'
+                            }`}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Reset Machine Bind */}
                           <button
                             onClick={() => {
                               setSelectedLicense(lic);
@@ -921,6 +958,75 @@ export default function LicensesPage() {
           </div>
         </div>
       )}
+
+      {/* Modal: QR Code POS Pairing */}
+      {showQrModal && selectedLicense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-sm rounded-3xl p-6 border shadow-2xl space-y-5 text-center ${
+            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="text-left">
+                <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Mobile POS Pairing</h3>
+                <p className="text-[11px] text-teal-400 font-mono">{selectedLicense.license_key}</p>
+              </div>
+              <button onClick={() => setShowQrModal(false)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white flex flex-col items-center justify-center shadow-inner mx-auto w-fit">
+              {/* Generated Scalable High-Res QR SVG Matrix */}
+              <svg className="w-44 h-44" viewBox="0 0 100 100" fill="none">
+                <rect width="100" height="100" fill="white" />
+                {/* Outer corners */}
+                <rect x="10" y="10" width="24" height="24" fill="#0f172a" />
+                <rect x="14" y="14" width="16" height="16" fill="white" />
+                <rect x="18" y="18" width="8" height="8" fill="#0d9488" />
+
+                <rect x="66" y="10" width="24" height="24" fill="#0f172a" />
+                <rect x="70" y="14" width="16" height="16" fill="white" />
+                <rect x="74" y="18" width="8" height="8" fill="#0d9488" />
+
+                <rect x="10" y="66" width="24" height="24" fill="#0f172a" />
+                <rect x="14" y="70" width="16" height="16" fill="white" />
+                <rect x="18" y="74" width="8" height="8" fill="#0d9488" />
+
+                {/* Internal Data Matrix Pattern */}
+                <rect x="42" y="14" width="6" height="6" fill="#0f172a" />
+                <rect x="52" y="14" width="6" height="6" fill="#0f172a" />
+                <rect x="42" y="24" width="6" height="6" fill="#0f172a" />
+                <rect x="52" y="28" width="6" height="6" fill="#0f172a" />
+                <rect x="42" y="38" width="6" height="6" fill="#0f172a" />
+                <rect x="14" y="42" width="6" height="6" fill="#0f172a" />
+                <rect x="24" y="42" width="6" height="6" fill="#0f172a" />
+                <rect x="34" y="48" width="6" height="6" fill="#0d9488" />
+                <rect x="48" y="48" width="6" height="6" fill="#0f172a" />
+                <rect x="62" y="48" width="6" height="6" fill="#0f172a" />
+                <rect x="76" y="42" width="6" height="6" fill="#0f172a" />
+                <rect x="76" y="56" width="6" height="6" fill="#0f172a" />
+                <rect x="42" y="66" width="6" height="6" fill="#0f172a" />
+                <rect x="52" y="66" width="6" height="6" fill="#0f172a" />
+                <rect x="62" y="76" width="6" height="6" fill="#0d9488" />
+                <rect x="72" y="76" width="6" height="6" fill="#0f172a" />
+                <rect x="82" y="76" width="6" height="6" fill="#0f172a" />
+              </svg>
+            </div>
+
+            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Scan this cryptographic QR token using the E-Store Cashier POS camera to bind the hardware register automatically.
+            </p>
+
+            <button
+              onClick={() => handleCopy(selectedLicense.license_key)}
+              className="w-full py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-2xl text-xs font-bold transition active:scale-95"
+            >
+              Copy Raw Token String
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

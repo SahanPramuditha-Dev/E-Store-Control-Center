@@ -170,6 +170,7 @@ def get_dashboard_stats(
 
 # 2. Tenant Management
 @router.get("/tenants")
+@router.get("/organizations")
 def list_tenants(db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
     tenants = db.query(Tenant).all()
     return [

@@ -71,6 +71,12 @@ export default function ReleasesPage() {
     }
   };
 
+  const [channelFilter, setChannelFilter] = useState('ALL');
+
+  const filteredReleases = releases.filter(r => {
+    return channelFilter === 'ALL' || r.channel === channelFilter;
+  });
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
       {/* Header */}
@@ -84,6 +90,23 @@ export default function ReleasesPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div className={`p-1 rounded-xl border flex gap-1 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+            {['ALL', 'STABLE', 'BETA', 'NIGHTLY'].map((ch) => (
+              <button
+                key={ch}
+                type="button"
+                onClick={() => setChannelFilter(ch)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  channelFilter === ch
+                    ? 'bg-teal-500 text-slate-950 shadow-xs'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {ch}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={fetchReleases}
             className={`p-2.5 rounded-2xl border transition shadow-xs active:scale-95 ${
@@ -106,7 +129,7 @@ export default function ReleasesPage() {
 
       {/* Grid of Releases */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {releases.map((rel) => (
+        {filteredReleases.map((rel) => (
           <div
             key={rel.id}
             className={`p-6 rounded-3xl border space-y-4 transition-all duration-300 hover:-translate-y-1 ${

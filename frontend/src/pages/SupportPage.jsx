@@ -49,6 +49,20 @@ export default function SupportPage() {
     fetchData();
   }, []);
 
+  const cannedResponses = [
+    { title: 'Hardware Machine Rebind', text: 'We have verified and reset your machine hardware lock. You can now activate your license key on the new register.' },
+    { title: 'Thermal Printer & ESC/POS Setup', text: 'Please ensure your thermal printer USB driver is running in RAW ESC/POS 80mm mode for instant receipts.' },
+    { title: 'Enterprise Feature Activation', text: 'The requested enterprise feature module has been provisioned and enabled for your tenant organization.' }
+  ];
+
+  const handleApplyCanned = (text) => {
+    setForm(prev => ({
+      ...prev,
+      description: prev.description ? `${prev.description}\n\n${text}` : text
+    }));
+    showToast('Canned response snippet inserted.', 'info');
+  };
+
   const handleCreateTicket = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -72,6 +86,7 @@ export default function SupportPage() {
       setSubmitting(false);
     }
   };
+
 
   const handleUpdateStatus = async (ticketId, newStatus) => {
     try {
@@ -290,7 +305,26 @@ export default function SupportPage() {
               </div>
 
               <div>
-                <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Issue Details *</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={`block font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Issue Details *</label>
+                  <span className="text-[10px] text-teal-400 font-semibold">Canned Templates:</span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {cannedResponses.map((cr, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleApplyCanned(cr.text)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-medium border transition ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-teal-400 hover:border-teal-500' : 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100'
+                      }`}
+                    >
+                      + {cr.title}
+                    </button>
+                  ))}
+                </div>
+
                 <textarea
                   required
                   placeholder="Detailed description of the customer request or troubleshooting steps..."
@@ -301,6 +335,7 @@ export default function SupportPage() {
                   }`}
                 />
               </div>
+
 
               <div className={`flex justify-end gap-3 pt-4 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                 <button

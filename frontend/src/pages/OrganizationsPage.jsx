@@ -67,6 +67,34 @@ export default function OrganizationsPage() {
     }
   };
 
+  const [industryFilter, setIndustryFilter] = useState('ALL');
+
+  const handleExportCSV = () => {
+    if (organizations.length === 0) return;
+    const headers = ['Tenant Code', 'Company Name', 'Contact Name', 'Phone', 'Email', 'Industry', 'Status', 'Stores', 'Devices', 'Storage (MB)'];
+    const rows = organizations.map(o => [
+      o.tenant_code,
+      `"${o.company_name.replace(/"/g, '""')}"`,
+      `"${o.contact_name.replace(/"/g, '""')}"`,
+      o.phone,
+      o.email || 'N/A',
+      o.industry || 'General',
+      o.status,
+      o.shops_count || 1,
+      o.machines_count || 1,
+      o.storage_used_mb || 0
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `estore_organizations_directory_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const filteredOrgs = organizations.filter(o => {
     const matchesSearch =
       o.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -75,7 +103,8 @@ export default function OrganizationsPage() {
       (o.email || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'ALL' || o.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesIndustry = industryFilter === 'ALL' || (o.industry_code === industryFilter) || (o.industry === industryFilter);
+    return matchesSearch && matchesStatus && matchesIndustry;
   });
 
   return (
@@ -91,6 +120,15 @@ export default function OrganizationsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportCSV}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border text-xs font-bold transition shadow-xs active:scale-95 ${
+              isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white' : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900'
+            }`}
+          >
+            <HardDrive className="w-3.5 h-3.5 text-teal-500" />
+            <span>Export Directory CSV</span>
+          </button>
           <button
             onClick={fetchOrganizations}
             className={`p-2.5 rounded-2xl border transition shadow-xs active:scale-95 ${
@@ -125,6 +163,21 @@ export default function OrganizationsPage() {
         </div>
 
         <select
+          value={industryFilter}
+          onChange={(e) => setIndustryFilter(e.target.value)}
+          className={`rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none border ${
+            isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+          }`}
+        >
+          <option value="ALL">All Industries</option>
+          <option value="RETAIL_ELECTRONICS">Electronics & Retail</option>
+          <option value="AUTO_PARTS">Automotive & Spare Parts</option>
+          <option value="PHARMACY">Pharmacy & Healthcare</option>
+          <option value="FASHION_APPAREL">Fashion & Apparel</option>
+          <option value="SUPERMARKET">Supermarket & Grocery</option>
+        </select>
+
+        <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className={`rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none border ${
@@ -138,6 +191,7 @@ export default function OrganizationsPage() {
           <option value="SUSPENDED">SUSPENDED</option>
         </select>
       </div>
+
 
       {/* Organizations Table */}
       <div className={`rounded-3xl border overflow-hidden shadow-sm ${

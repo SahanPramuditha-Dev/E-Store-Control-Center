@@ -43,13 +43,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
     setFormData((prev) => {
       const updated = { ...prev, [name]: value };
 
-      // Auto-populate codes if blank
-      if (name === 'company_name' && !prev.tenant_code) {
-        updated.tenant_code = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8);
-      }
-      if (name === 'shop_name' && !prev.shop_code) {
-        updated.shop_code = (updated.tenant_code || 'SHOP') + '-HQ';
-      }
+      // Only update the direct field being edited, do not overwrite tenant_code or shop_code
       if (name === 'package_code') {
         const prices = {
           STARTER: 35000,

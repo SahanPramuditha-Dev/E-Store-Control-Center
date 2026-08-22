@@ -18,6 +18,10 @@ export default function MachinesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [copiedFp, setCopiedFp] = useState(null);
+  const [selectedMachine, setSelectedMachine] = useState(null);
+  const [showSpecModal, setShowSpecModal] = useState(false);
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
+
 
   const fetchMachines = async () => {
     try {
@@ -245,10 +249,27 @@ export default function MachinesPage() {
 
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Hardware Spec Inspector */}
+                          <button
+                            onClick={() => {
+                              setSelectedMachine(m);
+                              setShowSpecModal(true);
+                            }}
+                            title="Inspect Hardware Telemetry"
+                            className={`p-1.5 rounded-xl border transition ${
+                              isDark ? 'bg-slate-800 text-sky-400 border-slate-700 hover:bg-slate-700' : 'bg-slate-100 text-sky-700 border-slate-200 hover:bg-slate-200'
+                            }`}
+                          >
+                            <Cpu className="w-3.5 h-3.5" />
+                          </button>
+
                           {active ? (
                             <button
-                              onClick={() => handleUpdateStatus(m.id, 'DEACTIVATED')}
-                              title="Deactivate Machine"
+                              onClick={() => {
+                                setSelectedMachine(m);
+                                setShowRevokeModal(true);
+                              }}
+                              title="Emergency Revoke / Unbind"
                               className={`p-1.5 rounded-xl border transition ${
                                 isDark ? 'bg-slate-800 text-rose-400 border-slate-700 hover:bg-rose-950/40' : 'bg-slate-100 text-rose-700 border-slate-200 hover:bg-rose-50'
                               }`}
@@ -276,6 +297,116 @@ export default function MachinesPage() {
           </table>
         </div>
       </div>
+
+      {/* Modal: Hardware Telemetry Inspector */}
+      {showSpecModal && selectedMachine && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-3xl p-6 border shadow-2xl space-y-5 ${
+            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Laptop className="w-5 h-5 text-teal-500" />
+                <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {selectedMachine.machine_name || 'Terminal POS Device'}
+                </h3>
+              </div>
+              <button onClick={() => setShowSpecModal(false)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className={`p-3 rounded-2xl border space-y-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <span className="text-slate-400 font-mono text-[10px]">SHA-256 HARDWARE FINGERPRINT</span>
+                <p className="font-mono text-[11px] font-bold text-teal-400 break-all">{selectedMachine.machine_fingerprint}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="text-slate-400 text-[10px]">OPERATING SYSTEM</span>
+                  <p className={`font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedMachine.os_info || 'Windows 11 POS'}</p>
+                </div>
+                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="text-slate-400 text-[10px]">DESKTOP APP VERSION</span>
+                  <p className="font-mono text-teal-400 font-bold mt-0.5">v{selectedMachine.app_version || '2026.1.0'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="text-slate-400 text-[10px]">TENANT ENTITY</span>
+                  <p className={`font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedMachine.tenant_name}</p>
+                </div>
+                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="text-slate-400 text-[10px]">REGISTERED SHOP</span>
+                  <p className={`font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedMachine.shop_name}</p>
+                </div>
+              </div>
+
+              <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <span className="text-slate-400 text-[10px]">LAST HEARTBEAT TELEMETRY</span>
+                <p className={`font-mono text-[11px] mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {formatDateTime(selectedMachine.last_seen_at)}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowSpecModal(false)}
+              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-xs font-bold transition"
+            >
+              Close Inspector
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Emergency Terminal Revocation / Kill Switch */}
+      {showRevokeModal && selectedMachine && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-3xl p-6 border shadow-2xl space-y-5 text-center ${
+            isDark ? 'bg-slate-900 border-rose-500/30' : 'bg-white border-rose-200'
+          }`}>
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/30 flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Revoke POS Terminal Authorization?
+              </h3>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                This will immediately invalidate the local license cryptographic session on terminal <span className="font-mono font-bold text-rose-400">{selectedMachine.machine_name || 'Terminal'}</span> and lock checkout operations.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowRevokeModal(false)}
+                className={`py-2.5 rounded-2xl text-xs font-bold border transition ${
+                  isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleUpdateStatus(selectedMachine.id, 'DEACTIVATED');
+                  setShowRevokeModal(false);
+                }}
+                className="py-2.5 bg-rose-500 hover:bg-rose-400 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-rose-500/25"
+              >
+                Revoke Immediately
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

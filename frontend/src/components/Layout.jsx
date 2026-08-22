@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Building2, Store, Key, Laptop, CreditCard, 
   ShieldCheck, LogOut, Package, History, Search, Plus, 
   User, Sun, Moon, Activity, Sliders, LifeBuoy, Megaphone, 
-  PackageCheck, Server, Settings, ChevronRight, Sparkles, Layers 
+  PackageCheck, Server, Settings, ChevronRight, Sparkles, Layers,
+  Bell, ChevronDown, Check, ExternalLink, ShieldAlert, Cpu
 } from 'lucide-react';
 import { useTheme } from './ThemeContext';
 import CommandPalette from './CommandPalette';
@@ -17,6 +18,19 @@ export default function Layout({ onLogout }) {
   const { theme, toggleTheme, isDark } = useTheme();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+
+  // Dropdown states
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // Mock initial notifications with real-time dismiss capability
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: 'Ed25519 Cryptographic Verification', desc: 'All 8 cluster licenses verified against offline public key.', time: '5m ago', unread: true, type: 'success' },
+    { id: 2, title: 'Upcoming License Renewal', desc: 'Apex Retailers license expires in 28 days.', time: '1h ago', unread: true, type: 'warning' },
+    { id: 3, title: 'Background Telemetry Purge', desc: 'Hourly system telemetry garbage collection completed.', time: '2h ago', unread: false, type: 'info' }
+  ]);
+
 
   // Initialize Enterprise Session Security & Inactivity Timeout
   const {
@@ -241,15 +255,141 @@ export default function Layout({ onLogout }) {
             }`}>Ctrl+K</kbd>
           </button>
 
-          {/* Controls */}
-          <div className="flex items-center gap-3">
+          {/* Controls with Dropdowns */}
+          <div className="flex items-center gap-2.5">
+            {/* Quick Actions Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setIsQuickActionsOpen(prev => !prev);
+                  setIsNotifOpen(false);
+                  setIsProfileOpen(false);
+                }}
+                className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition active:scale-95 ${
+                  isDark 
+                    ? 'bg-slate-950 border-slate-800 text-slate-200 hover:border-slate-700' 
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300 shadow-2xs'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                <span>Actions</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {isQuickActionsOpen && (
+                <div className={`absolute right-0 mt-2 w-56 rounded-2xl border shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 ${
+                  isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+                }`}>
+                  <div className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 text-slate-400">Quick Shortcuts</div>
+                  <button
+                    onClick={() => { setIsQuickActionsOpen(false); setIsOnboardingOpen(true); }}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium text-left transition ${
+                      isDark ? 'hover:bg-slate-800 text-teal-400' : 'hover:bg-slate-100 text-teal-700'
+                    }`}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Rapid Client Onboard</span>
+                  </button>
+                  <button
+                    onClick={() => { setIsQuickActionsOpen(false); navigate('/licenses'); }}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium text-left transition ${
+                      isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
+                    }`}
+                  >
+                    <Key className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Issue Cryptographic Token</span>
+                  </button>
+                  <button
+                    onClick={() => { setIsQuickActionsOpen(false); navigate('/announcements'); }}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium text-left transition ${
+                      isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
+                    }`}
+                  >
+                    <Megaphone className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Broadcast Announcement</span>
+                  </button>
+                  <button
+                    onClick={() => { setIsQuickActionsOpen(false); navigate('/releases'); }}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium text-left transition ${
+                      isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
+                    }`}
+                  >
+                    <PackageCheck className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Deploy Desktop OTA Binary</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Notifications Center Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setIsNotifOpen(prev => !prev);
+                  setIsQuickActionsOpen(false);
+                  setIsProfileOpen(false);
+                }}
+                className={`p-2 rounded-xl border relative transition-all duration-200 active:scale-95 ${
+                  isDark 
+                    ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:text-slate-900 hover:border-slate-300 shadow-2xs'
+                }`}
+              >
+                <Bell className="w-4 h-4" />
+                {notifications.some(n => n.unread) && (
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-teal-500 animate-ping" />
+                )}
+                {notifications.some(n => n.unread) && (
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-teal-500" />
+                )}
+              </button>
+
+              {isNotifOpen && (
+                <div className={`absolute right-0 mt-2 w-80 rounded-2xl border shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150 ${
+                  isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+                }`}>
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/40">
+                    <span className="text-xs font-bold flex items-center gap-1.5">
+                      <Bell className="w-3.5 h-3.5 text-teal-400" />
+                      <span>Security & System Alerts</span>
+                    </span>
+                    <button
+                      onClick={() => setNotifications(prev => prev.map(n => ({ ...n, unread: false })))}
+                      className="text-[10px] text-teal-500 hover:underline font-semibold"
+                    >
+                      Mark all read
+                    </button>
+                  </div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={`p-2.5 rounded-xl border text-xs transition ${
+                          notif.unread
+                            ? isDark ? 'bg-slate-950 border-teal-500/30' : 'bg-teal-50/50 border-teal-200'
+                            : isDark ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-[11px] truncate">{notif.title}</span>
+                          <span className="text-[9px] text-slate-400 font-mono">{notif.time}</span>
+                        </div>
+                        <p className={`text-[11px] leading-snug ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{notif.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               title={isDark ? "Switch to Light Theme" : "Switch to Dark Theme"}
-              className={`p-2 rounded-2xl border transition-all duration-200 active:scale-95 ${
+              className={`p-2 rounded-xl border transition-all duration-200 active:scale-95 ${
                 isDark 
                   ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
-                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:text-slate-900 hover:border-slate-300'
+                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:text-slate-900 hover:border-slate-300 shadow-2xs'
               }`}
             >
               {isDark ? (
@@ -259,7 +399,8 @@ export default function Layout({ onLogout }) {
               )}
             </button>
 
-            <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold ${
+            {/* SaaS Live Status */}
+            <div className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold ${
               isDark 
                 ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' 
                 : 'bg-teal-50 border-teal-200 text-teal-700'
@@ -268,15 +409,17 @@ export default function Layout({ onLogout }) {
               <span>SaaS Live</span>
             </div>
 
+            {/* Rapid Onboard Action */}
             <button
               onClick={() => setIsOnboardingOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-extrabold transition shadow-md shadow-teal-500/20 active:scale-95 hover:-translate-y-0.5"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-extrabold transition shadow-md shadow-teal-500/20 active:scale-95 hover:-translate-y-0.5"
             >
-              <Plus className="w-4 h-4" />
-              <span>Rapid Onboard</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Onboard</span>
             </button>
           </div>
         </header>
+
 
         {/* Independently Scrollable Page Body */}
         <main className={`flex-1 overflow-y-auto p-6 md:p-8 transition-colors duration-300 ${

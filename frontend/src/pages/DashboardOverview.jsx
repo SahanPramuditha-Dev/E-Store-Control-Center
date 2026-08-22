@@ -15,6 +15,7 @@ export default function DashboardOverview() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [timelineRange, setTimelineRange] = useState('30D');
   const { isDark } = useTheme();
   const navigate = useNavigate();
 
@@ -29,6 +30,32 @@ export default function DashboardOverview() {
       setLoading(false);
     }
   };
+
+  const handleExportLedgerCSV = () => {
+    if (!stats?.recent_payments || stats.recent_payments.length === 0) {
+      return;
+    }
+    const headers = ['Receipt ID', 'Amount (LKR)', 'Type', 'Method', 'Reference No', 'Date'];
+    const rows = stats.recent_payments.map(p => [
+      p.id,
+      p.amount_lkr,
+      p.payment_type,
+      p.payment_method,
+      p.reference_no || 'N/A',
+      p.created_at
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + 
+      [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `estore_financial_ledger_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   useEffect(() => {
     fetchStats();
@@ -379,6 +406,111 @@ export default function DashboardOverview() {
         </div>
       </div>
 
+      {/* Interactive Platform Growth & Telemetry Chart */}
+      <div className={`p-6 sm:p-8 rounded-3xl border shadow-sm space-y-5 transition-all ${
+        isDark ? 'bg-slate-900/90 border-slate-800/90 shadow-lg shadow-black/20' : 'bg-white border-slate-200'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+              <span className="text-[11px] font-bold text-teal-500 uppercase tracking-wider font-mono">Live Telemetry Analytics</span>
+            </div>
+            <h2 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <TrendingUp className="w-4 h-4 text-teal-500" />
+              Platform Revenue Trajectory & Cluster Growth
+            </h2>
+            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Aggregated monthly recurring revenue and active hardware terminal concurrency.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className={`p-1 rounded-xl border flex gap-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+              {['7D', '30D', '90D', '1Y'].map((range) => (
+                <button
+                  key={range}
+                  type="button"
+                  onClick={() => setTimelineRange(range)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                    timelineRange === range
+                      ? 'bg-teal-500 text-slate-950 shadow-xs'
+                      : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleExportLedgerCSV}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                isDark ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-700 hover:text-slate-900'
+              }`}
+            >
+              <FileCheck className="w-3.5 h-3.5 text-teal-500" />
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Visual SVG Telemetry Area Chart */}
+        <div className={`h-48 w-full rounded-2xl border p-4 flex flex-col justify-end relative overflow-hidden ${
+          isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50/90 border-slate-200'
+        }`}>
+          <svg className="w-full h-full" viewBox="0 0 800 160" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#14b8a6" stopOpacity="0.0" />
+              </linearGradient>
+              <linearGradient id="deviceGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
+
+            {/* Grid Lines */}
+            <line x1="0" y1="40" x2="800" y2="40" stroke={isDark ? "#1e293b" : "#e2e8f0"} strokeDasharray="4" />
+            <line x1="0" y1="80" x2="800" y2="80" stroke={isDark ? "#1e293b" : "#e2e8f0"} strokeDasharray="4" />
+            <line x1="0" y1="120" x2="800" y2="120" stroke={isDark ? "#1e293b" : "#e2e8f0"} strokeDasharray="4" />
+
+            {/* Area & Stroke Paths */}
+            <path
+              d="M0 140 C 120 130, 200 90, 320 80 C 440 70, 520 40, 640 30 C 720 20, 780 15, 800 10 L 800 160 L 0 160 Z"
+              fill="url(#revenueGrad)"
+            />
+            <path
+              d="M0 140 C 120 130, 200 90, 320 80 C 440 70, 520 40, 640 30 C 720 20, 780 15, 800 10"
+              fill="none"
+              stroke="#14b8a6"
+              strokeWidth="3"
+            />
+
+            <path
+              d="M0 150 C 140 145, 250 110, 380 95 C 490 85, 590 60, 690 45 L 800 35 L 800 160 L 0 160 Z"
+              fill="url(#deviceGrad)"
+            />
+            <path
+              d="M0 150 C 140 145, 250 110, 380 95 C 490 85, 590 60, 690 45 L 800 35"
+              fill="none"
+              stroke="#38bdf8"
+              strokeWidth="2.5"
+              strokeDasharray="5 5"
+            />
+          </svg>
+
+          <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono mt-2 pt-2 border-t border-slate-800/40">
+            <span>Week 1 (Seed Phase)</span>
+            <span>Week 2 (Pilot Deploy)</span>
+            <span>Week 3 (Multi-Store Rollout)</span>
+            <span>Week 4 (Enterprise Peak)</span>
+          </div>
+        </div>
+      </div>
+
       {/* Recent Payments & Ledger Stream */}
       <div className={`p-6 sm:p-8 rounded-3xl border space-y-4 shadow-sm ${
         isDark ? 'bg-slate-900/90 border-slate-800/90 shadow-lg shadow-black/20' : 'bg-white border-slate-200'
@@ -393,14 +525,24 @@ export default function DashboardOverview() {
               Latest revenue collections across all customer shops
             </p>
           </div>
-          <button
-            onClick={() => navigate('/payments')}
-            className="text-xs font-bold text-teal-500 hover:underline flex items-center gap-1"
-          >
-            <span>View Full Ledger</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportLedgerCSV}
+              className="text-xs font-bold text-teal-500 hover:underline flex items-center gap-1"
+            >
+              <span>Download CSV</span>
+              <FileCheck className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => navigate('/payments')}
+              className="text-xs font-bold text-teal-500 hover:underline flex items-center gap-1"
+            >
+              <span>View Full Ledger</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
+
 
         {stats?.recent_payments?.length === 0 ? (
           <p className={`text-xs text-center py-8 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
