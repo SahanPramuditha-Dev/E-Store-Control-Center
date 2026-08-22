@@ -64,3 +64,27 @@ def validate_license(
             detail=msg
         )
     return LicenseResponse(success=True, message=msg, token=token)
+
+
+@router.get("/public-keys")
+def get_public_keys():
+    """
+    Public Keyring distribution endpoint (JWKS-style).
+    Allows client ERP desktop applications to fetch trusted root and rotated Ed25519 public keys.
+    """
+    from app.licensing.key_manager import KeyManager
+    pub_key = KeyManager.get_server_public_key()
+    pub_key_b64 = KeyManager.export_public_key_b64(pub_key)
+    
+    return {
+        "keys": [
+            {
+                "key_id": "estore-root-2026-v1",
+                "algorithm": "Ed25519",
+                "usage": "license_signature_verification",
+                "public_key_b64": pub_key_b64,
+                "status": "active"
+            }
+        ]
+    }
+

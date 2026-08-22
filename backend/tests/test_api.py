@@ -119,3 +119,17 @@ def test_api_activate_invalid_key():
     })
     assert res.status_code == 400
     assert "Invalid license key" in res.json()["detail"]
+
+def test_api_public_keys_keyring():
+    client = TestClient(app)
+    res = client.get("/license/public-keys")
+    assert res.status_code == 200
+    data = res.json()
+    assert "keys" in data
+    assert len(data["keys"]) > 0
+    key_entry = data["keys"][0]
+    assert key_entry["key_id"] == "estore-root-2026-v1"
+    assert key_entry["algorithm"] == "Ed25519"
+    assert key_entry["status"] == "active"
+    assert len(key_entry["public_key_b64"]) > 0
+

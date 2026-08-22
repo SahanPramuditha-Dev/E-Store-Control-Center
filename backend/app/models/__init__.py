@@ -465,5 +465,8 @@ class AuditLog(Base):
     entity_id = Column(String(50), nullable=True)
     details_json = Column(JSON, nullable=True)
     ip_address = Column(String(50), nullable=True)
+    prev_record_hash = Column(String(64), nullable=True)
+    record_hash = Column(String(64), nullable=True, index=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
+
 
