@@ -340,7 +340,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-24">
           {step === 1 && (
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-white flex items-center gap-2">
@@ -420,13 +420,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
                   />
                 </div>
-                <CentralSelect
-                  label="Industry Vertical *"
-                  value={formData.industry_code || 'MOBILE_RETAIL'}
-                  onChange={(val) => setFormData(prev => ({ ...prev, industry_code: val }))}
-                  options={INDUSTRY_OPTIONS}
-                />
-                <div className="col-span-2">
+                <div>
                   <label className="text-xs text-slate-400 font-medium block mb-1">Physical Address</label>
                   <input
                     type="text"
@@ -435,6 +429,14 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     onChange={handleChange}
                     placeholder="e.g. 120 Galle Road, Colombo 03"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <CentralSelect
+                    label="Industry Vertical *"
+                    value={formData.industry_code || 'MOBILE_RETAIL'}
+                    onChange={(val) => setFormData(prev => ({ ...prev, industry_code: val }))}
+                    options={INDUSTRY_OPTIONS}
                   />
                 </div>
               </div>

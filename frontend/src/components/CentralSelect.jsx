@@ -26,58 +26,11 @@ export default function CentralSelect({
   className = '',
   fullWidth = true,
   error,
-  placement = 'auto',
+  placement = 'bottom',
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [dropUp, setDropUp] = useState(false);
   const dropdownRef = useRef(null);
   const menuRef = useRef(null);
-
-  // Position calculation for auto flip
-  useEffect(() => {
-    if (!isOpen || !dropdownRef.current) return;
-
-    if (placement === 'top') {
-      setDropUp(true);
-      return;
-    }
-    if (placement === 'bottom') {
-      setDropUp(false);
-      return;
-    }
-
-    const updatePosition = () => {
-      if (!dropdownRef.current) return;
-      const rect = dropdownRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const spaceBelowViewport = viewportHeight - rect.bottom;
-      
-      // Also check nearest scrollable container
-      let spaceBelowContainer = spaceBelowViewport;
-      let spaceAboveContainer = rect.top;
-      
-      const scrollParent = dropdownRef.current.closest('.overflow-y-auto, .overflow-auto, [data-scroll-container]');
-      if (scrollParent) {
-        const parentRect = scrollParent.getBoundingClientRect();
-        spaceBelowContainer = parentRect.bottom - rect.bottom;
-        spaceAboveContainer = rect.top - parentRect.top;
-      }
-
-      const effectiveSpaceBelow = Math.min(spaceBelowViewport, spaceBelowContainer);
-      const effectiveSpaceAbove = Math.min(rect.top, spaceAboveContainer);
-
-      // If less than 240px below and more room above, flip upward
-      if (effectiveSpaceBelow < 240 && effectiveSpaceAbove > effectiveSpaceBelow) {
-        setDropUp(true);
-      } else {
-        setDropUp(false);
-      }
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    return () => window.removeEventListener('resize', updatePosition);
-  }, [isOpen, placement]);
 
   // Close on outside click
   useEffect(() => {
@@ -156,8 +109,8 @@ export default function CentralSelect({
         <div 
           ref={menuRef}
           className={`absolute ${
-            dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
-          } left-0 right-0 bg-slate-900/98 backdrop-blur-2xl border border-slate-700/90 rounded-2xl p-1.5 shadow-2xl z-[100] divide-y divide-slate-800/60 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95 duration-150 custom-scrollbar`}
+            placement === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+          } left-0 right-0 bg-slate-900/98 backdrop-blur-2xl border border-slate-700/90 rounded-2xl p-1.5 shadow-2xl z-[100] divide-y divide-slate-800/60 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-150`}
           style={{ boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 1px 1px rgba(255,255,255,0.05)' }}
         >
           {options.length === 0 ? (
