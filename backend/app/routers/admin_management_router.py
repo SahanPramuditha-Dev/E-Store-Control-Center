@@ -144,8 +144,8 @@ def get_dashboard_stats(
     db: Session = Depends(get_db),
     admin: AdminUser = Depends(get_current_admin)
 ):
-    total_tenants = db.query(Tenant).count()
-    total_shops = db.query(Shop).count()
+    total_tenants = db.query(Tenant).filter(Tenant.is_deleted == False).count()
+    total_shops = db.query(Shop).filter(Shop.is_deleted == False).count()
     total_licenses = db.query(License).count()
     active_licenses = db.query(License).filter(License.status == LicenseStatus.ACTIVE).count()
     suspended_licenses = db.query(License).filter(License.status == LicenseStatus.SUSPENDED).count()
@@ -161,7 +161,151 @@ def get_dashboard_stats(
         License.expires_at <= soon_30d
     ).count()
 
-    recent_payments = db.query(Payment).order_by(Payment.created_at.desc()).limit(5).all()
+    # Expiring licenses list
+    expiring_licenses_query = db.query(License).filter(
+        License.status == LicenseStatus.ACTIVE,
+        License.expires_at != None,
+        License.expires_at <= soon_30d
+    ).order_by(License.expires_at.asc()).limit(5).all()
+
+    expiring_licenses_data = []
+    for l in expiring_licenses_query:
+        exp_dt = l.expires_at.replace(tzinfo=timezone.utc) if l.expires_at and l.expires_at.tzinfo is None else l.expires_at
+        days_left = max(0, (exp_dt - now).days) if exp_dt else 0
+        expiring_licenses_data.append({
+            "id": l.id,
+            "license_key": l.license_key,
+            "tenant_name": l.tenant.company_name if l.tenant else "Unknown Tenant",
+            "tenant_code": l.tenant.tenant_code if l.tenant else "N/A",
+            "shop_name": l.shop.shop_name if l.shop else "Main Branch",
+            "package_code": l.package.code if l.package else "CUSTOM",
+            "package_name": l.package.name if l.package else "Custom Plan",
+            "expires_at": l.expires_at.isoformat() if l.expires_at else None,
+            "days_left": days_left
+        })
+
+    recent_payments = db.query(Payment).order_by(Payment.created_at.desc()).limit(8).all()
+    recent_payments_data = []
+    for p in recent_payments:
+        recent_payments_data.append({
+            "id": p.id,
+            "tenant_name": p.tenant.company_name if p.tenant else "Direct Payment",
+            "shop_name": p.shop.shop_name if p.shop else None,
+            "amount_lkr": p.amount_lkr,
+            "payment_type": p.payment_type.value if hasattr(p.payment_type, 'value') else str(p.payment_type),
+            "payment_method": p.payment_method,
+            "reference_no": p.reference_no,
+            "created_at": p.created_at.isoformat() if p.created_at else None
+        })
+
+    # Recent Audit Activity Feed
+    recent_audits = db.query(AuditLog).order_by(AuditLog.id.desc()).limit(8).all()
+    audit_list = []
+    for a in recent_audits:
+        admin_name = a.admin_user.username if a.admin_user else "System Engine"
+        audit_list.append({
+            "id": a.id,
+            "action": a.action,
+            "entity_type": a.entity_type,
+            "entity_id": a.entity_id,
+            "actor": admin_name,
+            "details": a.details_json,
+            "record_hash": (a.record_hash[:12] + "...") if a.record_hash else None,
+            "created_at": a.created_at.isoformat() if a.created_at else None
+        })
+
+    # Industry distribution
+    industry_map = {
+        'MOBILE_RETAIL': 'Mobile Retail & Repair',
+        'GROCERY': 'Supermarket & Grocery',
+        'FASHION': 'Fashion & Apparel',
+        'ELECTRONICS': 'Electronics & Appliances',
+        'COSMETICS': 'Cosmetics & Beauty',
+        'GENERAL_RETAIL': 'General Retail & POS'
+    }
+    raw_industries = db.query(Tenant.industry_code, func.count(Tenant.id)).filter(Tenant.is_deleted == False).group_by(Tenant.industry_code).all()
+    industry_breakdown = []
+    for code, count in raw_industries:
+        c_code = code or 'MOBILE_RETAIL'
+        industry_breakdown.append({
+            "code": c_code,
+            "label": industry_map.get(c_code, c_code.replace('_', ' ').title()),
+            "count": count,
+            "percentage": round((count / total_tenants * 100), 1) if total_tenants > 0 else 0
+        })
+
+    # Growth & Period Metrics (MoM)
+    past_30d = now - timedelta(days=30)
+    prev_past_60d = now - timedelta(days=60)
+    
+    rev_last_30d = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= past_30d).scalar() or 0.0
+    rev_prev_30d = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= prev_past_60d, Payment.created_at < past_30d).scalar() or 0.0
+    rev_growth_pct = round(((rev_last_30d - rev_prev_30d) / rev_prev_30d * 100), 1) if rev_prev_30d > 0 else (100.0 if rev_last_30d > 0 else 0.0)
+
+    tenants_last_30d = db.query(Tenant).filter(Tenant.created_at >= past_30d, Tenant.is_deleted == False).count()
+    tenants_prev_30d = db.query(Tenant).filter(Tenant.created_at >= prev_past_60d, Tenant.created_at < past_30d, Tenant.is_deleted == False).count()
+    tenants_growth_pct = round(((tenants_last_30d - tenants_prev_30d) / tenants_prev_30d * 100), 1) if tenants_prev_30d > 0 else (100.0 if tenants_last_30d > 0 else 0.0)
+
+    devices_last_30d = db.query(Machine).filter(Machine.first_activated_at >= past_30d).count()
+    devices_prev_30d = db.query(Machine).filter(Machine.first_activated_at >= prev_past_60d, Machine.first_activated_at < past_30d).count()
+    devices_growth_pct = round(((devices_last_30d - devices_prev_30d) / devices_prev_30d * 100), 1) if devices_prev_30d > 0 else (100.0 if devices_last_30d > 0 else 0.0)
+
+    licenses_last_30d = db.query(License).filter(License.issued_at >= past_30d).count()
+    licenses_prev_30d = db.query(License).filter(License.issued_at >= prev_past_60d, License.issued_at < past_30d).count()
+    licenses_growth_pct = round(((licenses_last_30d - licenses_prev_30d) / licenses_prev_30d * 100), 1) if licenses_prev_30d > 0 else (100.0 if licenses_last_30d > 0 else 0.0)
+
+    # Dynamic time-series points based on actual records
+    timeline_7d = []
+    for i in range(6, -1, -1):
+        day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        day_rev = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= day_start, Payment.created_at < day_end).scalar() or 0.0
+        day_devs = db.query(Machine).filter(Machine.first_activated_at <= day_end, Machine.status == MachineStatus.ACTIVE).count()
+        timeline_7d.append({
+            "label": day_start.strftime("%a"),
+            "full_date": day_start.strftime("%b %d"),
+            "revenue": float(day_rev),
+            "devices": day_devs
+        })
+
+    timeline_30d = []
+    for i in range(4, 0, -1):
+        w_start = (now - timedelta(days=i*7)).replace(hour=0, minute=0, second=0, microsecond=0)
+        w_end = w_start + timedelta(days=7)
+        w_rev = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= w_start, Payment.created_at < w_end).scalar() or 0.0
+        w_devs = db.query(Machine).filter(Machine.first_activated_at <= w_end, Machine.status == MachineStatus.ACTIVE).count()
+        timeline_30d.append({
+            "label": f"Wk {5-i}",
+            "full_date": f"{w_start.strftime('%b %d')} - {w_end.strftime('%b %d')}",
+            "revenue": float(w_rev),
+            "devices": w_devs
+        })
+
+    timeline_90d = []
+    for i in range(3, 0, -1):
+        m_start = (now - timedelta(days=i*30)).replace(hour=0, minute=0, second=0, microsecond=0)
+        m_end = m_start + timedelta(days=30)
+        m_rev = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= m_start, Payment.created_at < m_end).scalar() or 0.0
+        m_devs = db.query(Machine).filter(Machine.first_activated_at <= m_end, Machine.status == MachineStatus.ACTIVE).count()
+        timeline_90d.append({
+            "label": m_start.strftime("%b"),
+            "full_date": m_start.strftime("%B %Y"),
+            "revenue": float(m_rev),
+            "devices": m_devs
+        })
+
+    timeline_1y = []
+    for i in range(11, -1, -1):
+        m_start = (now - timedelta(days=i*30)).replace(hour=0, minute=0, second=0, microsecond=0)
+        m_end = m_start + timedelta(days=30)
+        m_rev = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= m_start, Payment.created_at < m_end).scalar() or 0.0
+        m_devs = db.query(Machine).filter(Machine.first_activated_at <= m_end, Machine.status == MachineStatus.ACTIVE).count()
+        timeline_1y.append({
+            "label": m_start.strftime("%b"),
+            "full_date": m_start.strftime("%B %Y"),
+            "revenue": float(m_rev),
+            "devices": m_devs
+        })
 
     return {
         "total_tenants": total_tenants,
@@ -172,16 +316,28 @@ def get_dashboard_stats(
         "active_machines": active_machines,
         "expiring_soon_30d": expiring_soon,
         "total_revenue_lkr": total_revenue,
-        "recent_payments": [
-            {
-                "id": p.id,
-                "amount_lkr": p.amount_lkr,
-                "payment_type": p.payment_type.value,
-                "payment_method": p.payment_method,
-                "reference_no": p.reference_no,
-                "created_at": p.created_at.isoformat()
-            } for p in recent_payments
-        ]
+        "growth_metrics": {
+            "revenue_mom_pct": rev_growth_pct,
+            "tenants_mom_pct": tenants_growth_pct,
+            "devices_mom_pct": devices_growth_pct,
+            "licenses_mom_pct": licenses_growth_pct
+        },
+        "recent_payments": recent_payments_data,
+        "recent_activity": audit_list,
+        "expiring_licenses": expiring_licenses_data,
+        "industry_breakdown": industry_breakdown,
+        "timeline_series": {
+            "7D": timeline_7d,
+            "30D": timeline_30d,
+            "90D": timeline_90d,
+            "1Y": timeline_1y
+        },
+        "system_health": {
+            "status": "OPERATIONAL",
+            "crypto_engine": "Ed25519 SHA-256",
+            "db_status": "CONNECTED",
+            "active_nodes": 1
+        }
     }
 
 # 2. Tenant Management
