@@ -14,11 +14,12 @@ from app.models import (
     Announcement, AnnouncementType, AppRelease, ApiKey, PlatformSetting,
     BackgroundJob, TenantStatus
 )
-from app.auth import get_current_admin
+from app.auth import get_current_admin, require_role, create_impersonation_token
 from app.licensing.service import LicenseService
 
 
 router = APIRouter(prefix="/admin", tags=["Admin Management"])
+
 
 # --- Pydantic Schemas ---
 class TenantCreate(BaseModel):
@@ -189,7 +190,11 @@ def list_tenants(db: Session = Depends(get_db), admin: AdminUser = Depends(get_c
     ]
 
 @router.post("/tenants")
-def create_tenant(req: TenantCreate, db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
+def create_tenant(
+    req: TenantCreate, 
+    db: Session = Depends(get_db), 
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]))
+):
     existing = db.query(Tenant).filter(Tenant.tenant_code == req.tenant_code).first()
     if existing:
         raise HTTPException(status_code=400, detail="Tenant code already exists")
@@ -280,7 +285,11 @@ def list_shops(db: Session = Depends(get_db), admin: AdminUser = Depends(get_cur
     ]
 
 @router.post("/shops")
-def create_shop(req: ShopCreate, db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
+def create_shop(
+    req: ShopCreate, 
+    db: Session = Depends(get_db), 
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]))
+):
     tenant = db.query(Tenant).filter(Tenant.id == req.tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -335,7 +344,7 @@ def update_package(
     package_id: int,
     req: PackageUpdateRequest,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin)
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]))
 ):
     pkg = db.query(Package).filter(Package.id == package_id).first()
     if not pkg:
@@ -354,6 +363,7 @@ def update_package(
     log_admin_action(db, admin.id, "UPDATE_PACKAGE", "PACKAGE", pkg.id, {"code": pkg.code, "price": pkg.price_lkr})
     db.commit()
     return {"success": True, "message": "Package updated successfully"}
+
 
 # 5. Licenses Management & Advanced Lifecycle Actions
 @router.get("/licenses")
@@ -427,7 +437,11 @@ def get_license_history(license_id: int, db: Session = Depends(get_db), admin: A
     }
 
 @router.post("/licenses")
-def issue_license(req: LicenseIssueRequest, db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
+def issue_license(
+    req: LicenseIssueRequest, 
+    db: Session = Depends(get_db), 
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]))
+):
     clean_pkg_code = req.package_code.strip().upper()
     tenant = db.query(Tenant).filter(Tenant.id == req.tenant_id).first()
     shop = db.query(Shop).filter(Shop.id == req.shop_id).first()
@@ -519,7 +533,7 @@ def renew_license(
     license_id: int,
     req: LicenseRenewRequest,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin)
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE]))
 ):
     lic = db.query(License).filter(License.id == license_id).first()
     if not lic:
@@ -566,7 +580,7 @@ def reset_machine(
     license_id: int,
     req: MachineResetRequest,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin)
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.SUPPORT, AdminRole.TECHNICAL]))
 ):
     lic = db.query(License).filter(License.id == license_id).first()
     if not lic:
@@ -594,7 +608,7 @@ def suspend_license(
     license_id: int,
     req: LicenseActionRequest,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin)
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]))
 ):
     lic = db.query(License).filter(License.id == license_id).first()
     if not lic:
@@ -620,7 +634,7 @@ def suspend_license(
 def reactivate_license(
     license_id: int,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin)
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]))
 ):
     lic = db.query(License).filter(License.id == license_id).first()
     if not lic:
@@ -638,6 +652,7 @@ def reactivate_license(
         notes="Reactivated license"
     )
     db.add(event)
+
     log_admin_action(db, admin.id, "REACTIVATE_LICENSE", "LICENSE", lic.id)
     db.commit()
     return {"success": True, "message": "License reactivated successfully."}
@@ -647,7 +662,7 @@ def revoke_license(
     license_id: int,
     req: LicenseActionRequest,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin)
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]))
 ):
     lic = db.query(License).filter(License.id == license_id).first()
     if not lic:
@@ -714,7 +729,7 @@ def list_payments(db: Session = Depends(get_db), admin: AdminUser = Depends(get_
 def record_payment(
     req: PaymentCreateRequest,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin)
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.FINANCE]))
 ):
     tenant = db.query(Tenant).filter(Tenant.id == req.tenant_id).first()
     shop = db.query(Shop).filter(Shop.id == req.shop_id).first()
@@ -734,10 +749,143 @@ def record_payment(
     db.add(pmt)
     db.flush()
 
-    log_admin_action(db, admin.id, "RECORD_PAYMENT", "PAYMENT", pmt.id, {"amount": pmt.amount_lkr, "shop": shop.shop_name})
+    log_admin_action(db, admin.id, "RECORD_PAYMENT", "PAYMENT", pmt.id, {
+        "amount": pmt.amount_lkr,
+        "type": pmt.payment_type.value,
+        "method": pmt.payment_method,
+        "tenant": tenant.company_name
+    })
     db.commit()
     db.refresh(pmt)
-    return {"success": True, "payment_id": pmt.id}
+    return pmt
+
+# 8. Feature Flag Controls & Rollouts
+# 10. Rapid Single-Step Onboarding
+@router.post("/onboard")
+def rapid_onboard(
+    req: OnboardingRequest,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]))
+):
+    import uuid
+
+    # 1. Create or retrieve Tenant
+    existing_tenant = db.query(Tenant).filter(Tenant.tenant_code == req.tenant_code.upper().strip()).first()
+    if existing_tenant:
+        tenant = existing_tenant
+        if req.industry_code:
+            tenant.industry_code = req.industry_code
+    else:
+        tenant = Tenant(
+            tenant_code=req.tenant_code.upper().strip(),
+            company_name=req.company_name.strip(),
+            contact_name=req.contact_name.strip(),
+            phone=req.phone.strip(),
+            email=req.email,
+            address=req.address,
+            industry_code=req.industry_code or "MOBILE_RETAIL"
+        )
+        db.add(tenant)
+        db.flush()
+
+    # 2. Create Shop
+    existing_shop = db.query(Shop).filter(Shop.shop_code == req.shop_code.upper().strip()).first()
+    if existing_shop:
+        shop = existing_shop
+    else:
+        shop = Shop(
+            tenant_id=tenant.id,
+            shop_code=req.shop_code.upper().strip(),
+            shop_name=req.shop_name.strip(),
+            city=req.city,
+            phone=req.phone
+        )
+        db.add(shop)
+        db.flush()
+
+    # 3. Package
+    clean_pkg_code = req.package_code.strip().upper()
+    pkg = db.query(Package).filter(func.upper(func.trim(Package.code)) == clean_pkg_code).first()
+    if not pkg:
+        pkg_names = {
+            "STARTER": ("Starter Retail Plan", 35000.0),
+            "BUSINESS": ("Business Pro Plan", 95000.0),
+            "ENTERPRISE": ("Enterprise AI Suite", 250000.0),
+            "RETAIL": ("iStore Retail", 55000.0),
+            "BUSINESS_AI": ("iStore Business AI", 145000.0)
+        }
+        name, price = pkg_names.get(clean_pkg_code, (f"{clean_pkg_code} Plan", 95000.0))
+        pkg = Package(code=clean_pkg_code, name=name, price_lkr=price, is_active=True)
+        db.add(pkg)
+        db.flush()
+
+    # 4. Generate License
+    key_prefix = f"ISTORE-{pkg.code}"
+    random_part = uuid.uuid4().hex[:12].upper()
+    license_key = f"{key_prefix}-{random_part[:4]}-{random_part[4:8]}-{random_part[8:]}"
+
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=req.validity_days) if req.license_type != LicenseType.LIFETIME else None
+
+    license_obj = License(
+        license_key=license_key,
+        tenant_id=tenant.id,
+        shop_id=shop.id,
+        package_id=pkg.id,
+        license_type=req.license_type,
+        status=LicenseStatus.ACTIVE,
+        issued_at=now,
+        starts_at=now,
+        expires_at=expires_at,
+        max_machines=req.max_machines
+    )
+    db.add(license_obj)
+    db.flush()
+
+    event = LicenseEvent(
+        license_id=license_obj.id,
+        event_type=LicenseEventType.CREATED,
+        from_state=None,
+        to_state=LicenseStatus.ACTIVE.value,
+        actor=admin.username,
+        notes=f"Auto-issued during rapid onboarding for {tenant.company_name} ({shop.shop_name})"
+    )
+    db.add(event)
+
+    # 5. Optional Payment
+    payment_id = None
+    if req.payment_amount and req.payment_amount > 0:
+        payment = Payment(
+            tenant_id=tenant.id,
+            shop_id=shop.id,
+            license_id=license_obj.id,
+            amount_lkr=req.payment_amount,
+            payment_type=PaymentType.INITIAL,
+            payment_method=req.payment_method or "BANK_TRANSFER",
+            reference_no=req.payment_reference,
+            notes="Initial Onboarding Payment"
+        )
+        db.add(payment)
+        db.flush()
+        payment_id = payment.id
+
+    log_admin_action(db, admin.id, "RAPID_ONBOARD", "TENANT", tenant.id, {
+        "tenant_code": tenant.tenant_code,
+        "shop_code": shop.shop_code,
+        "package": pkg.code,
+        "payment": req.payment_amount
+    })
+    db.commit()
+    return {
+        "success": True,
+        "tenant_id": tenant.id,
+        "shop_id": shop.id,
+        "license_id": license_obj.id,
+        "license_key": license_obj.license_key,
+        "package_code": pkg.code,
+        "expires_at": license_obj.expires_at.isoformat() if license_obj.expires_at else None,
+        "payment_id": payment_id
+    }
 
 # 8. Audit Trail Viewer
 @router.get("/audit-logs")
@@ -987,7 +1135,7 @@ def update_machine_status(
     machine_id: int,
     req: MachineStatusUpdateRequest,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin)
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TECHNICAL]))
 ):
     machine = db.query(Machine).filter(Machine.id == machine_id).first()
     if not machine:
@@ -1043,16 +1191,17 @@ def get_all_organizations(
 def generate_support_impersonation(
     tenant_id: int,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin)
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.SUPPORT]))
 ):
     t = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not t:
         raise HTTPException(status_code=404, detail="Tenant organization not found")
 
-    # Generate temporary audited support access token
-    from app.auth import create_admin_token
-    support_token = create_admin_token(
-        data={"sub": f"impersonate_{admin.username}_{t.tenant_code}", "tenant_id": t.id, "role": "SUPPORT"}
+    # Generate isolated support impersonation token (strictly scoped away from Admin APIs)
+    support_token = create_impersonation_token(
+        tenant_code=t.tenant_code,
+        operator_username=admin.username,
+        expires_minutes=60
     )
 
     log_admin_action(db, admin.id, "IMPERSONATE_SESSION_START", "TENANT", t.id, {
@@ -1076,7 +1225,7 @@ def update_organization_status(
     tenant_id: int,
     req: MachineStatusUpdateRequest,
     db: Session = Depends(get_db),
-    admin: AdminUser = Depends(get_current_admin)
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]))
 ):
     t = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not t:
@@ -1091,6 +1240,7 @@ def update_organization_status(
     })
     db.commit()
     return {"success": True, "status": t.status.value}
+
 
 
 # --- 14. Feature Flags Management ---

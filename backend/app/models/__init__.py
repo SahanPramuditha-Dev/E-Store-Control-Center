@@ -120,14 +120,16 @@ class Tenant(Base):
     users_count = Column(Integer, default=3, nullable=False)
     
     status = Column(Enum(TenantStatus), default=TenantStatus.ACTIVE, nullable=False)
+    is_deleted = Column(Boolean, default=False, index=True, nullable=False)
+    deleted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
-    shops = relationship("Shop", back_populates="tenant", cascade="all, delete-orphan")
-    licenses = relationship("License", back_populates="tenant", cascade="all, delete-orphan")
-    payments = relationship("Payment", back_populates="tenant", cascade="all, delete-orphan")
-    tickets = relationship("SupportTicket", back_populates="tenant", cascade="all, delete-orphan")
-    api_keys = relationship("ApiKey", back_populates="tenant", cascade="all, delete-orphan")
+    shops = relationship("Shop", back_populates="tenant")
+    licenses = relationship("License", back_populates="tenant")
+    payments = relationship("Payment", back_populates="tenant")
+    tickets = relationship("SupportTicket", back_populates="tenant")
+    api_keys = relationship("ApiKey", back_populates="tenant")
 
 
 class Shop(Base):
@@ -140,8 +142,11 @@ class Shop(Base):
     city = Column(String(100), nullable=True)
     phone = Column(String(30), nullable=True)
     status = Column(String(30), default="ACTIVE", nullable=False)
+    is_deleted = Column(Boolean, default=False, index=True, nullable=False)
+    deleted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
 
     tenant = relationship("Tenant", back_populates="shops")
     licenses = relationship("License", back_populates="shop", cascade="all, delete-orphan")

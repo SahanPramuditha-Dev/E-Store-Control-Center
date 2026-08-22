@@ -1,10 +1,179 @@
 import React, { useState } from 'react';
 import { 
   Building2, Store, Key, CreditCard, CheckCircle2, 
-  Copy, Download, X, ArrowRight, ArrowLeft, Loader2, Sparkles 
+  Copy, Download, X, ArrowRight, ArrowLeft, Loader2, Sparkles, RefreshCw,
+  Smartphone, ShoppingBag, Shirt, Tv, Sparkles as SparklesIcon, Tag,
+  Zap, Crown, Shield, Clock, Infinity as InfinityIcon,
+  Landmark, Banknote, Globe
 } from 'lucide-react';
 import api from '../api';
 import { useToast } from './ToastContext';
+import CentralSelect from './CentralSelect';
+
+const INDUSTRY_OPTIONS = [
+  {
+    value: 'MOBILE_RETAIL',
+    label: 'Mobile Retail & Repair Center',
+    desc: 'IMEI tracking, workshop repairs & serialized warranty',
+    icon: Smartphone,
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/25',
+  },
+  {
+    value: 'GROCERY',
+    label: 'Supermarket & Grocery Store',
+    desc: 'Scale barcodes, weight/decimal qty, batch & expiry (FEFO)',
+    icon: ShoppingBag,
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/10',
+    border: 'border-emerald-500/25',
+  },
+  {
+    value: 'FASHION',
+    label: 'Fashion, Apparel & Footwear',
+    desc: 'Size × Color variant matrix, season & apparel collections',
+    icon: Shirt,
+    color: 'text-rose-400',
+    bg: 'bg-rose-500/10',
+    border: 'border-rose-500/25',
+  },
+  {
+    value: 'ELECTRONICS',
+    label: 'Consumer Electronics & Appliances',
+    desc: 'Serial tracking, warranty claim vault & diagnostic jobs',
+    icon: Tv,
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/10',
+    border: 'border-cyan-500/25',
+  },
+  {
+    value: 'COSMETICS',
+    label: 'Cosmetics, Beauty & Pharmacy',
+    desc: 'Batch tracking, expiry alerts & compact shelf tagging',
+    icon: SparklesIcon,
+    color: 'text-amber-400',
+    bg: 'bg-amber-500/10',
+    border: 'border-amber-500/25',
+  },
+  {
+    value: 'GENERAL_RETAIL',
+    label: 'General Retail & Hardware',
+    desc: 'Universal barcode inventory, unit conversion & fast billing',
+    icon: Tag,
+    color: 'text-purple-400',
+    bg: 'bg-purple-500/10',
+    border: 'border-purple-500/25',
+  },
+];
+
+const PACKAGE_OPTIONS = [
+  {
+    value: 'STARTER',
+    label: 'Starter Retail Plan (Rs 35,000)',
+    desc: 'Single terminal basic inventory & POS',
+    icon: Zap,
+    color: 'text-amber-400',
+    bg: 'bg-amber-500/10',
+    border: 'border-amber-500/25',
+  },
+  {
+    value: 'BUSINESS',
+    label: 'Business Pro Plan (Rs 95,000)',
+    desc: 'Multi-device & full industry workflows',
+    icon: Crown,
+    color: 'text-teal-400',
+    bg: 'bg-teal-500/10',
+    border: 'border-teal-500/25',
+  },
+  {
+    value: 'BUSINESS_AI',
+    label: 'iStore Business AI (Rs 145,000)',
+    desc: 'AI forecasting, demand & smart ledger',
+    icon: Sparkles,
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/25',
+  },
+  {
+    value: 'ENTERPRISE',
+    label: 'Enterprise AI Suite (Rs 250,000)',
+    desc: 'Multi-branch warehouse & unlimited seats',
+    icon: Shield,
+    color: 'text-purple-400',
+    bg: 'bg-purple-500/10',
+    border: 'border-purple-500/25',
+  },
+];
+
+const LICENSE_TYPE_OPTIONS = [
+  {
+    value: 'ANNUAL',
+    label: 'Annual License (365 Days)',
+    desc: 'Standard commercial 1-year entitlement',
+    icon: Clock,
+    color: 'text-teal-400',
+    bg: 'bg-teal-500/10',
+    border: 'border-teal-500/25',
+  },
+  {
+    value: 'TRIAL',
+    label: 'Trial Evaluation (14 Days)',
+    desc: 'Short demo for pilot evaluation',
+    icon: Clock,
+    color: 'text-amber-400',
+    bg: 'bg-amber-500/10',
+    border: 'border-amber-500/25',
+  },
+  {
+    value: 'LIFETIME',
+    label: 'Lifetime Enterprise License',
+    desc: 'Perpetual runtime entitlement',
+    icon: InfinityIcon,
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/10',
+    border: 'border-emerald-500/25',
+  },
+];
+
+const PAYMENT_METHOD_OPTIONS = [
+  {
+    value: 'BANK_TRANSFER',
+    label: 'Bank Transfer / Deposit',
+    desc: 'Direct corporate account transfer or slip upload',
+    icon: Landmark,
+    color: 'text-teal-400',
+    bg: 'bg-teal-500/10',
+    border: 'border-teal-500/25',
+  },
+  {
+    value: 'CASH',
+    label: 'Cash Collection',
+    desc: 'Physical currency collected by sales rep',
+    icon: Banknote,
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/10',
+    border: 'border-emerald-500/25',
+  },
+  {
+    value: 'CARD',
+    label: 'Credit / Debit Card POS',
+    desc: 'Electronic card swipe / merchant terminal',
+    icon: CreditCard,
+    color: 'text-sky-400',
+    bg: 'bg-sky-500/10',
+    border: 'border-sky-500/25',
+  },
+  {
+    value: 'ONLINE',
+    label: 'Online Gateway Payment',
+    desc: 'Payment link, Stripe / PayHere gateway',
+    icon: Globe,
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/25',
+  },
+];
 
 export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
   const { showToast } = useToast();
@@ -191,16 +360,29 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Tenant Code (Unique ID) *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-slate-400 font-medium">Tenant Code (Unique ID) *</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const code = (formData.company_name || 'SHOP').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8) || 'TENANT';
+                        setFormData(prev => ({ ...prev, tenant_code: code }));
+                      }}
+                      className="text-[10px] text-teal-400 hover:text-teal-300 font-bold inline-flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <RefreshCw size={10} /> Auto-Generate
+                    </button>
+                  </div>
                   <input
                     type="text"
                     name="tenant_code"
                     value={formData.tenant_code}
                     onChange={handleChange}
-                    placeholder="e.g. APEX"
+                    placeholder="e.g. APEXMOBI or IPOINTHQ"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-teal-500 uppercase"
                     required
                   />
+                  <p className="text-[10px] text-slate-500 mt-1">Unique slug used in database isolation & license cryptographic signing.</p>
                 </div>
                 <div>
                   <label className="text-xs text-slate-400 font-medium block mb-1">Contact Person *</label>
@@ -237,22 +419,12 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
                   />
                 </div>
-                <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Industry Vertical *</label>
-                  <select
-                    name="industry_code"
-                    value={formData.industry_code || 'MOBILE_RETAIL'}
-                    onChange={handleChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
-                  >
-                    <option value="MOBILE_RETAIL">📱 Mobile Retail & Repair Center</option>
-                    <option value="GROCERY">🥦 Supermarket & Grocery Store</option>
-                    <option value="FASHION">👗 Fashion, Apparel & Footwear</option>
-                    <option value="ELECTRONICS">📺 Consumer Electronics</option>
-                    <option value="COSMETICS">✨ Cosmetics & Pharmacy</option>
-                    <option value="GENERAL_RETAIL">🏷️ General Retail & Hardware</option>
-                  </select>
-                </div>
+                <CentralSelect
+                  label="Industry Vertical *"
+                  value={formData.industry_code || 'MOBILE_RETAIL'}
+                  onChange={(val) => setFormData(prev => ({ ...prev, industry_code: val }))}
+                  options={INDUSTRY_OPTIONS}
+                />
                 <div>
                   <label className="text-xs text-slate-400 font-medium block mb-1">Physical Address</label>
                   <input
@@ -267,7 +439,6 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
               </div>
             </div>
           )}
-
 
           {step === 2 && (
             <div className="space-y-4">
@@ -311,33 +482,40 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
                   />
                 </div>
-                <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Software Package Tier</label>
-                  <select
-                    name="package_code"
-                    value={formData.package_code}
-                    onChange={handleChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
-                  >
-                    <option value="STARTER">Starter Retail Plan (Rs 35,000)</option>
-                    <option value="BUSINESS">Business Pro Plan (Rs 95,000)</option>
-                    <option value="BUSINESS_AI">iStore Business AI (Rs 145,000)</option>
-                    <option value="ENTERPRISE">Enterprise AI Suite (Rs 250,000)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">License Duration / Type</label>
-                  <select
-                    name="license_type"
-                    value={formData.license_type}
-                    onChange={handleChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
-                  >
-                    <option value="ANNUAL">Annual (1 Year - 365 Days)</option>
-                    <option value="TRIAL">Trial (14 Days Demo)</option>
-                    <option value="LIFETIME">Lifetime License</option>
-                  </select>
-                </div>
+                <CentralSelect
+                  label="Software Package Tier"
+                  value={formData.package_code}
+                  onChange={(val) => {
+                    const prices = {
+                      STARTER: 35000,
+                      BUSINESS: 95000,
+                      ENTERPRISE: 250000,
+                      RETAIL: 55000,
+                      BUSINESS_AI: 145000
+                    };
+                    setFormData(prev => ({
+                      ...prev,
+                      package_code: val,
+                      payment_amount: prices[val] || 0
+                    }));
+                  }}
+                  options={PACKAGE_OPTIONS}
+                />
+                <CentralSelect
+                  label="License Duration / Type"
+                  value={formData.license_type}
+                  onChange={(val) => {
+                    let validity = 365;
+                    if (val === 'TRIAL') validity = 14;
+                    else if (val === 'LIFETIME') validity = 3650;
+                    setFormData(prev => ({
+                      ...prev,
+                      license_type: val,
+                      validity_days: validity
+                    }));
+                  }}
+                  options={LICENSE_TYPE_OPTIONS}
+                />
                 <div>
                   <label className="text-xs text-slate-400 font-medium block mb-1">Max Authorized Terminals (PCs)</label>
                   <input
@@ -390,21 +568,12 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500 font-mono"
                   />
                 </div>
-                <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Payment Method</label>
-                  <select
-                    name="payment_method"
-                    value={formData.payment_method}
-                    onChange={handleChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
-                  >
-                    <option value="BANK_TRANSFER">Bank Transfer / Deposit</option>
-                    <option value="CASH">Cash</option>
-                    <option value="CARD">Credit / Debit Card</option>
-                    <option value="CHEQUE">Cheque</option>
-                    <option value="ONLINE">Online Gateway</option>
-                  </select>
-                </div>
+                <CentralSelect
+                  label="Payment Method"
+                  value={formData.payment_method}
+                  onChange={(val) => setFormData(prev => ({ ...prev, payment_method: val }))}
+                  options={PAYMENT_METHOD_OPTIONS}
+                />
                 <div className="col-span-2">
                   <label className="text-xs text-slate-400 font-medium block mb-1">Payment Reference / Cheque No</label>
                   <input

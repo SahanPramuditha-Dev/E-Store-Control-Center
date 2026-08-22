@@ -21,5 +21,7 @@ class LicenseSigner:
         return SignedLicenseToken(
             payload=payload,
             signature=sig_b64,
-            signature_algorithm="Ed25519"
+            signature_algorithm="Ed25519",
+            key_id=payload.key_id
         )
+

@@ -44,8 +44,22 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_admin_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
+    to_encode.update({
+        "exp": expire,
+        "scope": data.get("scope", "admin_access")
+    })
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+def create_impersonation_token(tenant_code: str, operator_username: str, expires_minutes: int = 120) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+    payload = {
+        "sub": f"impersonate_{operator_username}_{tenant_code}",
+        "tenant_code": tenant_code,
+        "operator": operator_username,
+        "scope": "support_impersonation",
+        "exp": expire
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 def get_current_admin(
     token: str = Depends(oauth2_scheme),
@@ -59,22 +73,19 @@ def get_current_admin(
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")
+        token_scope: str = payload.get("scope", "admin_access")
+        
+        # Strictly reject support impersonation tokens from accessing Control Panel Admin APIs
+        if token_scope == "support_impersonation":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Support impersonation tokens cannot access Control Panel administrative APIs"
+            )
+
         if username is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-
-    # Support impersonation sessions
-    if username.startswith("impersonate_"):
-        parts = username.split("_")
-        if len(parts) >= 2:
-            operator_name = parts[1]
-            user = db.query(AdminUser).filter(
-                (AdminUser.username == operator_name) | (AdminUser.email == operator_name),
-                AdminUser.is_active == True
-            ).first()
-            if user:
-                return user
 
     user = db.query(AdminUser).filter(
         (AdminUser.username == username) | (AdminUser.email == username),
@@ -90,7 +101,8 @@ def require_role(allowed_roles: list[AdminRole]):
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Operation not permitted for current user role"
+                detail=f"Operation requires one of {[r.value for r in allowed_roles]}, but current user has {current_user.role.value}"
             )
         return current_user
     return role_checker
+

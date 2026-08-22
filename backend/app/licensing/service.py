@@ -72,9 +72,15 @@ class LicenseService:
         """
         from sqlalchemy import func
         clean_key = license_key.strip().upper()
-        license_obj = db.query(License).filter(func.upper(func.trim(License.license_key)) == clean_key).first()
+        # Row-level lock on the license record to guarantee serial execution and prevent race condition over-activation
+        try:
+            license_obj = db.query(License).filter(func.upper(func.trim(License.license_key)) == clean_key).with_for_update().first()
+        except Exception:
+            # Fallback for dialects that do not support SELECT FOR UPDATE
+            license_obj = db.query(License).filter(func.upper(func.trim(License.license_key)) == clean_key).first()
         if not license_obj:
             return False, "Invalid license key", None
+
 
         if license_obj.status in [LicenseStatus.REVOKED, LicenseStatus.SUSPENDED]:
             return False, f"License is {license_obj.status.value}. Activation prohibited.", None

@@ -20,8 +20,11 @@ class LicensePayload(BaseModel):
     grace_period_days: int = Field(default=14, description="Allowed offline duration before online check is forced")
     min_app_version: Optional[str] = Field(default=None, description="Minimum supported client version")
     max_app_version: Optional[str] = Field(default=None, description="Maximum supported client version")
+    key_id: str = Field(default="estore-root-2026-v1", description="Asymmetric public key identifier for key rotation")
 
 class SignedLicenseToken(BaseModel):
     payload: LicensePayload
     signature: str = Field(description="Base64 encoded Ed25519 digital signature of canonical payload")
     signature_algorithm: str = Field(default="Ed25519", description="Signature algorithm")
+    key_id: str = Field(default="estore-root-2026-v1", description="Public key identifier used to verify signature")
+

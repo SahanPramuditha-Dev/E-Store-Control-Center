@@ -150,3 +150,71 @@ def test_admin_login_and_crud_flow():
     search_data = search_res.json()
     assert len(search_data["tenants"]) > 0
 
+
+def test_rbac_role_enforcement_and_impersonation_isolation():
+    client = TestClient(app)
+    db = TestingSessionLocal()
+
+    # Create a READ_ONLY Admin
+    readonly_admin = AdminUser(
+        username="readonly_user",
+        email="readonly@istore.lk",
+        hashed_password=hash_password("readonly123"),
+        role=AdminRole.READ_ONLY,
+        is_active=True
+    )
+    db.add(readonly_admin)
+    db.commit()
+
+    # Login as READ_ONLY
+    login_res = client.post("/admin/auth/login", json={
+        "username": "readonly_user",
+        "password": "readonly123"
+    })
+    assert login_res.status_code == 200
+    ro_token = login_res.json()["access_token"]
+    ro_headers = {"Authorization": f"Bearer {ro_token}"}
+
+    # 1. READ_ONLY can read list endpoints
+    list_res = client.get("/admin/tenants", headers=ro_headers)
+    assert list_res.status_code == 200
+
+    # 2. READ_ONLY is strictly blocked (403 Forbidden) from mutating tenant
+    blocked_post = client.post("/admin/tenants", headers=ro_headers, json={
+        "tenant_code": "ILLEGAL-CORP",
+        "company_name": "Illegal Holdings",
+        "contact_name": "Bad Actor",
+        "phone": "+94770000000"
+    })
+    assert blocked_post.status_code == 403
+    assert "Operation requires" in blocked_post.json()["detail"]
+
+    # 3. Test Impersonation Token Generation & Scope Isolation
+    # Login as superadmin to generate impersonation token
+    sa_login = client.post("/admin/auth/login", json={"username": "superadmin", "password": "admin1234"})
+    sa_token = sa_login.json()["access_token"]
+    sa_headers = {"Authorization": f"Bearer {sa_token}"}
+
+    # First create tenant
+    t_res = client.post("/admin/tenants", headers=sa_headers, json={
+        "tenant_code": "TEST-IMP-CORP",
+        "company_name": "Test Impersonate Ltd",
+        "contact_name": "Operator Test",
+        "phone": "+94771112233"
+    })
+    assert t_res.status_code == 200
+    t_id = t_res.json()["id"]
+
+    # Generate support impersonation token
+    imp_res = client.post(f"/admin/organizations/{t_id}/impersonate", headers=sa_headers)
+    assert imp_res.status_code == 200
+    imp_token = imp_res.json()["impersonation_token"]
+    imp_headers = {"Authorization": f"Bearer {imp_token}"}
+
+    # Verify that support impersonation token is strictly rejected from Control Panel Admin APIs
+    blocked_admin_call = client.get("/admin/tenants", headers=imp_headers)
+    assert blocked_admin_call.status_code == 403
+    assert "Support impersonation tokens cannot access" in blocked_admin_call.json()["detail"]
+    db.close()
+
+
