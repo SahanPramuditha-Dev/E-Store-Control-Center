@@ -3,7 +3,8 @@ import {
   Building2, Plus, Search, MapPin, Phone, Mail, 
   RefreshCw, X, Loader2, Store, Key, Laptop, 
   ShieldCheck, HardDrive, CreditCard, Activity, 
-  UserCheck, Ban, CheckCircle2, ArrowRight, ExternalLink, Globe
+  UserCheck, Ban, CheckCircle2, ArrowRight, ExternalLink, Globe,
+  Layers, Sliders, Sparkles, Check, XCircle
 } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../components/ToastContext';
@@ -18,6 +19,14 @@ export default function OrganizationsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [impersonating, setImpersonating] = useState(false);
+  
+  // Industry & Capability Switching State
+  const [industryModalOpen, setIndustryModalOpen] = useState(false);
+  const [availableIndustries, setAvailableIndustries] = useState([]);
+  const [targetIndustryCode, setTargetIndustryCode] = useState('MOBILE_RETAIL');
+  const [previewCaps, setPreviewCaps] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [savingIndustry, setSavingIndustry] = useState(false);
 
   const fetchOrganizations = async () => {
     try {
@@ -64,6 +73,55 @@ export default function OrganizationsPage() {
       }
     } catch (err) {
       showToast('Failed to update status', 'error');
+    }
+  };
+
+  const handleOpenIndustryModal = async (org) => {
+    try {
+      const curInd = org.industry_code || org.industry || 'MOBILE_RETAIL';
+      setTargetIndustryCode(curInd);
+      setIndustryModalOpen(true);
+      
+      const res = await api.get('/admin/industries');
+      const indList = Array.isArray(res.data) ? res.data : [];
+      setAvailableIndustries(indList);
+      
+      fetchCapabilityPreview(curInd);
+    } catch (e) {
+      showToast('Could not load industry templates', 'error');
+    }
+  };
+
+  const fetchCapabilityPreview = async (indCode) => {
+    try {
+      setLoadingPreview(true);
+      const res = await api.post('/admin/capabilities/resolve-preview', {
+        industry_code: indCode
+      });
+      setPreviewCaps(res.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleSaveIndustry = async () => {
+    if (!selectedOrg) return;
+    try {
+      setSavingIndustry(true);
+      const res = await api.put(`/admin/tenants/${selectedOrg.id}/capabilities`, {
+        industry_code: targetIndustryCode,
+        reason: `Administrator switched business model to ${targetIndustryCode}`
+      });
+      showToast(`Business model switched to ${targetIndustryCode}! ${res.data.re_signed_licenses_count || 0} licenses re-signed with new capabilities.`, 'success');
+      setIndustryModalOpen(false);
+      fetchOrganizations();
+      setSelectedOrg(prev => ({ ...prev, industry: targetIndustryCode, industry_code: targetIndustryCode }));
+    } catch (err) {
+      showToast(err.response?.data?.detail || 'Failed to update industry', 'error');
+    } finally {
+      setSavingIndustry(false);
     }
   };
 
@@ -365,10 +423,18 @@ export default function OrganizationsPage() {
                 <span>Support Impersonate</span>
               </button>
 
+              <button
+                onClick={() => handleOpenIndustryModal(selectedOrg)}
+                className="flex items-center justify-center gap-2 p-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl text-xs transition shadow-md shadow-indigo-600/20 active:scale-95 cursor-pointer"
+              >
+                <Layers className="w-4 h-4" />
+                <span>Change Industry</span>
+              </button>
+
               {selectedOrg.status === 'ACTIVE' ? (
                 <button
                   onClick={() => handleToggleStatus(selectedOrg, 'SUSPENDED')}
-                  className="flex items-center justify-center gap-2 p-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 font-bold rounded-2xl text-xs transition active:scale-95"
+                  className="col-span-2 flex items-center justify-center gap-2 p-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 font-bold rounded-2xl text-xs transition active:scale-95"
                 >
                   <Ban className="w-4 h-4" />
                   <span>Suspend Organization</span>
@@ -376,7 +442,7 @@ export default function OrganizationsPage() {
               ) : (
                 <button
                   onClick={() => handleToggleStatus(selectedOrg, 'ACTIVE')}
-                  className="flex items-center justify-center gap-2 p-3 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-2xl text-xs transition shadow-md shadow-teal-500/20 active:scale-95"
+                  className="col-span-2 flex items-center justify-center gap-2 p-3 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-2xl text-xs transition shadow-md shadow-teal-500/20 active:scale-95"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Activate Organization</span>
@@ -423,7 +489,7 @@ export default function OrganizationsPage() {
               <div className={`p-4 rounded-2xl border space-y-2.5 ${
                 isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
               }`}>
-                <div className="flex justify-between"><span className="text-slate-400">Industry:</span> <span className="font-semibold">{selectedOrg.industry || 'Retail'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Industry:</span> <span className="font-bold text-indigo-500">{selectedOrg.industry || 'MOBILE_RETAIL'}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Country:</span> <span className="font-semibold">{selectedOrg.country || 'Sri Lanka'}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Currency:</span> <span className="font-semibold font-mono">{selectedOrg.currency || 'LKR'}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Timezone:</span> <span className="font-semibold font-mono">{selectedOrg.timezone || 'Asia/Colombo'}</span></div>
@@ -431,6 +497,136 @@ export default function OrganizationsPage() {
                 <div className="flex justify-between"><span className="text-slate-400">Email:</span> <span className="font-semibold">{selectedOrg.email || '—'}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Address:</span> <span className="font-semibold">{selectedOrg.address || '—'}</span></div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHANGE INDUSTRY & RE-SIGN LICENSES */}
+      {industryModalOpen && selectedOrg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className={`w-full max-w-2xl rounded-3xl border shadow-2xl p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto ${
+            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className={`flex items-center justify-between pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-500">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Switch Business Model / Industry
+                  </h3>
+                  <p className="text-xs text-slate-500">Tenant: <span className="font-bold text-teal-500">{selectedOrg.company_name}</span> ({selectedOrg.tenant_code})</p>
+                </div>
+              </div>
+              <button onClick={() => setIndustryModalOpen(false)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className={`text-xs font-bold uppercase tracking-wider block mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Select Target Industry Template
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {[
+                    { code: 'MOBILE_RETAIL', label: 'Mobile Retail & Repairs', desc: 'IMEI, Repairs, Warranty' },
+                    { code: 'GROCERY', label: 'Supermarket & Grocery', desc: 'Batches, Expiry, Weight' },
+                    { code: 'FASHION', label: 'Fashion & Apparel', desc: 'Sizes, Colors, Matrix' },
+                    { code: 'ELECTRONICS', label: 'Consumer Electronics', desc: 'Serial tracking, Repairs' },
+                    { code: 'COSMETICS', label: 'Cosmetics & Beauty', desc: 'Batches, Expiry' },
+                    { code: 'GENERAL_RETAIL', label: 'General Retail POS', desc: 'Standard Inventory & POS' },
+                  ].map((ind) => {
+                    const isSelected = targetIndustryCode === ind.code;
+                    return (
+                      <button
+                        key={ind.code}
+                        type="button"
+                        onClick={() => {
+                          setTargetIndustryCode(ind.code);
+                          fetchCapabilityPreview(ind.code);
+                        }}
+                        className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/25 ring-2 ring-indigo-500/20'
+                            : isDark
+                            ? 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-xs font-black block">{ind.label}</span>
+                        <span className={`text-[10px] block mt-0.5 ${isSelected ? 'text-indigo-100' : 'text-slate-500'}`}>{ind.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Capability Matrix Preview */}
+              <div className={`p-4 rounded-2xl border space-y-3 ${
+                isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Calculated Capabilities Diff
+                  </span>
+                  {loadingPreview && <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />}
+                </div>
+
+                {previewCaps && previewCaps.capability_breakdown ? (
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {Object.entries(previewCaps.capability_breakdown).map(([capKey, info]) => {
+                      const isEnabled = info.effective;
+                      return (
+                        <div
+                          key={capKey}
+                          className={`p-2.5 rounded-xl border flex items-center justify-between ${
+                            isEnabled
+                              ? isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                              : isDark ? 'bg-slate-900/60 border-slate-800 text-slate-500' : 'bg-white border-slate-200 text-slate-400'
+                          }`}
+                        >
+                          <span className="font-semibold text-[11px] truncate">{info.name || capKey}</span>
+                          {isEnabled ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 ml-1" />
+                          ) : (
+                            <XCircle className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">Select an industry template to view capabilities...</p>
+                )}
+              </div>
+
+              <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-[11px] text-amber-700 dark:text-amber-300">
+                <strong>Important:</strong> Switching the business model recalculates capabilities, increments configuration version, and automatically generates new cryptographically signed Ed25519 license tokens for this organization.
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIndustryModalOpen(false)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+                  isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveIndustry}
+                disabled={savingIndustry}
+                className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-black text-xs rounded-xl shadow-md transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {savingIndustry ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                <span>{savingIndustry ? 'Re-Signing Licenses...' : 'Apply & Re-Sign Licenses'}</span>
+              </button>
             </div>
           </div>
         </div>

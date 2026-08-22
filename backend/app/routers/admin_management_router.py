@@ -140,6 +140,7 @@ def format_dt_utc(dt: Optional[datetime]) -> Optional[str]:
 
 # 1. Dashboard Overview Stats
 @router.get("/dashboard/stats")
+@router.get("/dashboard/stats/")
 def get_dashboard_stats(
     db: Session = Depends(get_db),
     admin: AdminUser = Depends(get_current_admin)
@@ -933,6 +934,7 @@ def record_payment(
 # 8. Feature Flag Controls & Rollouts
 # 10. Rapid Single-Step Onboarding
 @router.post("/onboard")
+@router.post("/onboard/")
 def rapid_onboard(
     req: OnboardingRequest,
     db: Session = Depends(get_db),
@@ -1998,8 +2000,77 @@ def update_tenant_capabilities(
     )
     db.add(audit)
     db.commit()
+    db.refresh(tenant)
     
     from app.licensing.industry_capability_service import resolve_effective_capabilities
-    return resolve_effective_capabilities(db, tenant=tenant)
+    from app.licensing.service import LicenseService
+    
+    effective_result = resolve_effective_capabilities(db, tenant=tenant)
+    
+    # Automatically re-sign all active licenses for this tenant
+    active_licenses = db.query(License).filter(
+        License.tenant_id == tenant.id,
+        License.status == LicenseStatus.ACTIVE
+    ).all()
+    
+    re_signed_tokens = []
+    for lic in active_licenses:
+        machines = [m for m in lic.machines if m.status == MachineStatus.ACTIVE]
+        if machines:
+            for m in machines:
+                try:
+                    signed_tok = LicenseService.generate_signed_token_for_license(
+                        db=db,
+                        license_obj=lic,
+                        machine_fingerprint=m.machine_fingerprint
+                    )
+                    re_signed_tokens.append({
+                        "license_key": lic.license_key,
+                        "shop_code": lic.shop.shop_code if lic.shop else "MAIN",
+                        "machine_fingerprint": m.machine_fingerprint,
+                        "token": signed_tok.model_dump() if hasattr(signed_tok, 'model_dump') else signed_tok.dict()
+                    })
+                except Exception as ex:
+                    print(f"Warning: could not re-sign token for machine {m.machine_fingerprint}: {ex}")
+        else:
+            try:
+                signed_tok = LicenseService.generate_signed_token_for_license(
+                    db=db,
+                    license_obj=lic,
+                    machine_fingerprint=""
+                )
+                re_signed_tokens.append({
+                    "license_key": lic.license_key,
+                    "shop_code": lic.shop.shop_code if lic.shop else "MAIN",
+                    "machine_fingerprint": "",
+                    "token": signed_tok.model_dump() if hasattr(signed_tok, 'model_dump') else signed_tok.dict()
+                })
+            except Exception as ex:
+                print(f"Warning: could not re-sign unbound license {lic.license_key}: {ex}")
+                
+        # Record license event
+        event = LicenseEvent(
+            license_id=lic.id,
+            event_type=LicenseEventType.UPDATED,
+            from_state=lic.status.value,
+            to_state=lic.status.value,
+            actor=admin.username,
+            notes=f"Capabilities & Industry updated to {tenant.industry_code} (v{tenant.configuration_version})"
+        )
+        db.add(event)
+
+    db.commit()
+    
+    return {
+        "success": True,
+        "tenant_id": tenant.id,
+        "tenant_code": tenant.tenant_code,
+        "industry_code": tenant.industry_code,
+        "configuration_version": tenant.configuration_version,
+        "effective_capabilities": effective_result["effective_capabilities"],
+        "capability_breakdown": effective_result.get("capability_breakdown", {}),
+        "re_signed_licenses_count": len(re_signed_tokens),
+        "re_signed_tokens": re_signed_tokens
+    }
 
 
