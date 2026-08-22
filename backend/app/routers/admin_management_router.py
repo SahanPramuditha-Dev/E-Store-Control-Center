@@ -88,6 +88,7 @@ class OnboardingRequest(BaseModel):
     shop_name: str
     city: Optional[str] = None
     package_code: str = "BUSINESS"
+    industry_code: Optional[str] = "MOBILE_RETAIL"
     license_type: LicenseType = LicenseType.ANNUAL
     validity_days: int = 365
     max_machines: int = 1
@@ -839,6 +840,8 @@ def rapid_onboard(
     existing_tenant = db.query(Tenant).filter(Tenant.tenant_code == req.tenant_code.upper().strip()).first()
     if existing_tenant:
         tenant = existing_tenant
+        if req.industry_code:
+            tenant.industry_code = req.industry_code
     else:
         tenant = Tenant(
             tenant_code=req.tenant_code.upper().strip(),
@@ -846,7 +849,8 @@ def rapid_onboard(
             contact_name=req.contact_name.strip(),
             phone=req.phone.strip(),
             email=req.email,
-            address=req.address
+            address=req.address,
+            industry_code=req.industry_code or "MOBILE_RETAIL"
         )
         db.add(tenant)
         db.flush()

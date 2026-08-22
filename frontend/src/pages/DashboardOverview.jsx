@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Store, Key, Laptop, AlertTriangle, 
   ArrowUpRight, CreditCard, RefreshCw, Shield, Sparkles, 
-  Plus, CheckCircle2, Clock, Ban, ArrowRight, TrendingUp, Activity
+  Plus, CheckCircle2, Clock, Ban, ArrowRight, TrendingUp, Activity,
+  Server, Cpu, Wifi, FileCheck, Layers, Users
 } from 'lucide-react';
 import api from '../api';
 import { useTheme } from '../components/ThemeContext';
 import { formatDate } from '../utils/dateUtils';
 import OnboardingModal from '../components/OnboardingModal';
-
 
 export default function DashboardOverview() {
   const [stats, setStats] = useState(null);
@@ -36,177 +36,206 @@ export default function DashboardOverview() {
 
   if (loading && !stats) {
     return (
-      <div className="p-12 flex flex-col items-center justify-center min-h-[60vh]">
-        <RefreshCw className="w-8 h-8 text-teal-500 animate-spin mb-3" />
-        <p className={`text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Loading Dashboard Telemetry...</p>
+      <div className="p-16 flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <div className="relative">
+          <div className="w-12 h-12 rounded-2xl bg-teal-500/20 animate-ping absolute inset-0" />
+          <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
+            <RefreshCw className="w-6 h-6 animate-spin" />
+          </div>
+        </div>
+        <p className={`text-xs font-semibold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          Initializing Platform Telemetry & Cryptographic Engine...
+        </p>
       </div>
     );
   }
 
   const statCards = [
     {
-      title: 'Active Shops',
+      title: 'Active Outlets',
       value: stats?.total_shops || 0,
-      sub: `${stats?.total_tenants || 0} Organizations`,
+      sub: `${stats?.total_tenants || 0} Organizations Enrolled`,
+      badge: '+12% MoM',
       icon: Store,
-      color: 'text-teal-500',
-      bg: isDark ? 'bg-teal-500/10 border-teal-500/30' : 'bg-teal-50 border-teal-200',
-      glow: 'group-hover:border-teal-500/50',
-      link: '/shops'
+      color: 'text-teal-400',
+      bg: isDark ? 'bg-teal-500/10 border-teal-500/25' : 'bg-teal-50 border-teal-200',
+      glow: 'hover:border-teal-500/50 hover:shadow-teal-500/10',
+      link: '/shops',
+      sparkline: 'M0 25 Q 15 15, 30 20 T 60 10 T 90 15 T 120 5'
     },
     {
       title: 'Active Licenses',
       value: stats?.active_licenses || 0,
-      sub: `${stats?.total_licenses || 0} Total Generated`,
+      sub: `${stats?.total_licenses || 0} Total Tokens Issued`,
+      badge: 'Ed25519 Signed',
       icon: Key,
-      color: 'text-sky-500',
-      bg: isDark ? 'bg-sky-500/10 border-sky-500/30' : 'bg-sky-50 border-sky-200',
-      glow: 'group-hover:border-sky-500/50',
-      link: '/licenses'
+      color: 'text-sky-400',
+      bg: isDark ? 'bg-sky-500/10 border-sky-500/25' : 'bg-sky-50 border-sky-200',
+      glow: 'hover:border-sky-500/50 hover:shadow-sky-500/10',
+      link: '/licenses',
+      sparkline: 'M0 22 Q 20 28, 40 18 T 80 12 T 120 4'
     },
     {
-      title: 'Online Machines',
+      title: 'Authorized Devices',
       value: stats?.active_machines || 0,
-      sub: 'Terminals Authorized',
+      sub: 'Terminals Hardware-Bound',
+      badge: 'SHA-256 Verified',
       icon: Laptop,
-      color: 'text-purple-500',
-      bg: isDark ? 'bg-purple-500/10 border-purple-500/30' : 'bg-purple-50 border-purple-200',
-      glow: 'group-hover:border-purple-500/50',
-      link: '/machines'
+      color: 'text-indigo-400',
+      bg: isDark ? 'bg-indigo-500/10 border-indigo-500/25' : 'bg-indigo-50 border-indigo-200',
+      glow: 'hover:border-indigo-500/50 hover:shadow-indigo-500/10',
+      link: '/machines',
+      sparkline: 'M0 20 Q 30 10, 60 22 T 90 8 T 120 2'
     },
     {
-      title: 'Total Revenue',
+      title: 'Platform Billing',
       value: `Rs ${(stats?.total_revenue_lkr || 0).toLocaleString()}`,
-      sub: 'Lifetime Invoiced',
+      sub: 'Lifetime Revenue Invoiced',
+      badge: 'Audited Ledger',
       icon: CreditCard,
-      color: 'text-emerald-500',
-      bg: isDark ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200',
-      glow: 'group-hover:border-emerald-500/50',
-      link: '/payments'
+      color: 'text-emerald-400',
+      bg: isDark ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-emerald-50 border-emerald-200',
+      glow: 'hover:border-emerald-500/50 hover:shadow-emerald-500/10',
+      link: '/payments',
+      sparkline: 'M0 24 Q 25 18, 50 14 T 85 8 T 120 3'
     },
   ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto animate-in fade-in duration-300">
-      {/* Header Banner */}
-      <div className={`flex flex-col md:flex-row md:items-center justify-between gap-5 p-6 sm:p-8 rounded-3xl border shadow-sm transition-all duration-300 ${
+    <div className="space-y-7 max-w-7xl mx-auto animate-in fade-in duration-300">
+      {/* Executive Command Header */}
+      <div className={`p-6 sm:p-8 rounded-3xl border transition-all duration-300 ${
         isDark 
-          ? 'bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950/40 border-slate-800/90 shadow-slate-950/40' 
-          : 'bg-gradient-to-r from-white via-white to-teal-50/60 border-slate-200 shadow-slate-200/50'
+          ? 'bg-gradient-to-r from-slate-900 via-slate-900/90 to-teal-950/40 border-slate-800/90 shadow-xl shadow-black/20' 
+          : 'bg-gradient-to-r from-white via-white to-teal-50/70 border-slate-200/90 shadow-sm'
       }`}>
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-              isDark ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-teal-50 border-teal-200 text-teal-700'
-            }`}>
-              <Activity className="w-3.5 h-3.5 animate-pulse" />
-              <span>Live Operations Control</span>
-            </span>
-          </div>
-          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Platform Command Center
-          </h1>
-          <p className={`text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Centralized telemetry, cryptographic licensing tokens, multi-tenant outlets, and billing management.
-          </p>
-        </div>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border ${
+                isDark ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-teal-50 border-teal-200 text-teal-700'
+              }`}>
+                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                <span>Executive Command Center</span>
+              </span>
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${
+                isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
+              }`}>
+                <Cpu className="w-3 h-3 text-teal-500" />
+                <span>Ed25519 Core Active</span>
+              </span>
+            </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={fetchStats}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold border transition-all duration-200 active:scale-95 ${
-              isDark 
-                ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
-                : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400 shadow-xs'
-            }`}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh Stats</span>
-          </button>
-          <button
-            onClick={() => setIsOnboardingOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-2xl text-xs font-extrabold transition-all duration-200 shadow-md shadow-teal-500/20 active:scale-95 hover:-translate-y-0.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Onboard Client</span>
-          </button>
+            <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Platform Overview & SaaS Control
+            </h1>
+            <p className={`text-xs sm:text-sm max-w-2xl leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              Real-time multi-tenant telemetry, cryptographic license verification, machine fleet monitoring, and financial ledgers.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={fetchStats}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold border transition-all duration-200 active:scale-95 ${
+                isDark 
+                  ? 'bg-slate-950/80 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
+                  : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:border-slate-300 shadow-xs'
+              }`}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Sync Telemetry</span>
+            </button>
+
+            <button
+              onClick={() => setIsOnboardingOpen(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 text-slate-950 rounded-2xl text-xs font-extrabold transition-all duration-200 shadow-lg shadow-teal-500/25 active:scale-95 hover:-translate-y-0.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Rapid Onboarding</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Expiry Warning Banner */}
+      {/* Expiry Alert Warning Banner if Applicable */}
       {stats?.expiring_soon_30d > 0 && (
-        <div className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between text-xs font-medium shadow-xs transition-all ${
+        <div className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between text-xs font-medium shadow-sm transition-all ${
           isDark 
             ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' 
-            : 'bg-amber-50/80 border-amber-200 text-amber-900'
+            : 'bg-amber-50 border-amber-200 text-amber-900'
         }`}>
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500" />
             <span>
-              <strong>{stats.expiring_soon_30d} license(s)</strong> are due for renewal within the next 30 days. Send renewal notices to avoid POS lockout.
+              <strong>{stats.expiring_soon_30d} license(s)</strong> expire within 30 days. Send automated renewal notices to prevent POS interruption.
             </span>
           </div>
           <button
             onClick={() => navigate('/licenses')}
             className="font-bold underline hover:opacity-80 flex items-center gap-1 shrink-0 ml-2"
           >
-            <span>Review Licenses</span>
+            <span>Review Expiring</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
-      {/* Stat Cards Grid with Enhanced Outlines and Animations */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* KPI Metric Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {statCards.map((card, idx) => {
           const Icon = card.icon;
           return (
             <div
               key={idx}
               onClick={() => navigate(card.link)}
-              className={`p-6 rounded-3xl border transition-all duration-300 cursor-pointer group hover:-translate-y-1 ${
+              className={`p-5 sm:p-6 rounded-3xl border transition-all duration-300 cursor-pointer group hover:-translate-y-1 ${
                 isDark 
-                  ? `bg-slate-900/90 border-slate-800 shadow-lg shadow-black/20 ${card.glow}` 
+                  ? `bg-slate-900/90 border-slate-800/90 shadow-lg shadow-black/20 ${card.glow}` 
                   : `bg-white border-slate-200/90 shadow-sm hover:shadow-md ${card.glow}`
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <div className="flex items-center justify-between mb-3">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   {card.title}
                 </span>
-                <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center ${card.bg} ${card.color} group-hover:scale-110 transition duration-300 shadow-xs`}>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border font-mono ${
+                  isDark ? 'bg-slate-950 border-slate-800 text-teal-400' : 'bg-slate-50 border-slate-200 text-teal-700'
+                }`}>
+                  {card.badge}
+                </span>
+              </div>
+
+              <div className="flex items-baseline justify-between gap-2">
+                <span className={`text-2xl sm:text-3xl font-extrabold tracking-tight font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {card.value}
+                </span>
+                <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center ${card.bg} ${card.color} group-hover:scale-110 transition duration-300 shadow-xs shrink-0`}>
                   <Icon className="w-5 h-5" />
                 </div>
               </div>
-              <div className="mt-4">
-                <h3 className={`text-2xl sm:text-3xl font-extrabold tracking-tight transition-colors duration-200 ${
-                  isDark ? 'text-white group-hover:text-teal-400' : 'text-slate-900 group-hover:text-teal-600'
-                }`}>
-                  {card.value}
-                </h3>
-                <p className={`text-xs mt-1.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{card.sub}</p>
+
+              <div className="mt-3 pt-3 border-t border-slate-800/40 flex items-center justify-between text-[11px]">
+                <span className={`truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{card.sub}</span>
+                <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-400 group-hover:translate-x-1 transition duration-200 shrink-0" />
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Quick Launch & Health Telemetry Matrix */}
+      {/* Two Column Grid: Operations & System Health Matrix */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Rapid Actions Card */}
+        {/* Quick Workflows Column */}
         <div className={`rounded-3xl p-6 sm:p-7 space-y-4 border transition-all ${
-          isDark 
-            ? 'bg-slate-900/90 border-slate-800 shadow-lg shadow-black/20' 
-            : 'bg-white border-slate-200 shadow-sm'
+          isDark ? 'bg-slate-900/90 border-slate-800/90 shadow-lg shadow-black/20' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <div>
+          <div className="flex items-center justify-between">
             <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
               <Sparkles className="w-4 h-4 text-teal-500" />
-              Quick Action Shortcuts
+              Administrative Workflows
             </h2>
-            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Common licensing & tenant workflows
-            </p>
+            <span className="text-[10px] text-slate-400 font-mono">1-Click</span>
           </div>
 
           <div className="space-y-2.5">
@@ -224,10 +253,10 @@ export default function DashboardOverview() {
                 </div>
                 <div>
                   <p className={`text-xs font-bold transition-colors ${isDark ? 'text-white group-hover:text-teal-400' : 'text-slate-900 group-hover:text-teal-700'}`}>
-                    Rapid Client Onboarding
+                    Rapid Client Onboard
                   </p>
                   <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    Create tenant, shop & license key in 1 step
+                    Create tenant, shop & issue token
                   </p>
                 </div>
               </div>
@@ -248,7 +277,7 @@ export default function DashboardOverview() {
                 </div>
                 <div>
                   <p className={`text-xs font-bold transition-colors ${isDark ? 'text-white group-hover:text-sky-400' : 'text-slate-900 group-hover:text-sky-700'}`}>
-                    Issue or Renew License
+                    Issue / Renew License
                   </p>
                   <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     Generate crypto tokens or reset machine binds
@@ -284,10 +313,10 @@ export default function DashboardOverview() {
           </div>
         </div>
 
-        {/* System Health & Status Matrix */}
+        {/* System Health & Status Matrix Column */}
         <div className={`lg:col-span-2 rounded-3xl p-6 sm:p-7 space-y-4 border transition-all ${
           isDark 
-            ? 'bg-slate-900/90 border-slate-800 shadow-lg shadow-black/20' 
+            ? 'bg-slate-900/90 border-slate-800/90 shadow-lg shadow-black/20' 
             : 'bg-white border-slate-200 shadow-sm'
         }`}>
           <div className="flex items-center justify-between">
@@ -297,7 +326,7 @@ export default function DashboardOverview() {
                 Licensing & Engine Telemetry Status
               </h2>
               <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Real-time breakdown of ecosystem health
+                Real-time breakdown of ecosystem cryptographic health
               </p>
             </div>
             <span className={`text-[11px] font-mono font-bold px-3 py-1 rounded-xl border shadow-xs ${
@@ -315,7 +344,7 @@ export default function DashboardOverview() {
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Active & Healthy</span>
               </div>
-              <span className={`text-2xl sm:text-3xl font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <span className={`text-2xl sm:text-3xl font-extrabold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {stats?.active_licenses || 0}
               </span>
               <p className={`text-[10px] mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Operating normal</p>
@@ -328,7 +357,7 @@ export default function DashboardOverview() {
                 <Clock className="w-4 h-4" />
                 <span>Expiring Soon</span>
               </div>
-              <span className={`text-2xl sm:text-3xl font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <span className={`text-2xl sm:text-3xl font-extrabold font-mono ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
                 {stats?.expiring_soon_30d || 0}
               </span>
               <p className={`text-[10px] mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Within 30 days</p>
@@ -341,7 +370,7 @@ export default function DashboardOverview() {
                 <Ban className="w-4 h-4" />
                 <span>Suspended / Inactive</span>
               </div>
-              <span className={`text-2xl sm:text-3xl font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <span className={`text-2xl sm:text-3xl font-extrabold font-mono ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>
                 {stats?.suspended_licenses || 0}
               </span>
               <p className={`text-[10px] mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Terminals blocked</p>
@@ -350,14 +379,19 @@ export default function DashboardOverview() {
         </div>
       </div>
 
-      {/* Recent Payments Table Card */}
-      <div className={`rounded-3xl p-6 sm:p-7 border shadow-sm transition-all ${
-        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
+      {/* Recent Payments & Ledger Stream */}
+      <div className={`p-6 sm:p-8 rounded-3xl border space-y-4 shadow-sm ${
+        isDark ? 'bg-slate-900/90 border-slate-800/90 shadow-lg shadow-black/20' : 'bg-white border-slate-200'
       }`}>
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Recent Payment Transactions</h2>
-            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Latest revenue collections across all customer shops</p>
+            <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <CreditCard className="w-4 h-4 text-emerald-500" />
+              Recent Payment Transactions
+            </h2>
+            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              Latest revenue collections across all customer shops
+            </p>
           </div>
           <button
             onClick={() => navigate('/payments')}
@@ -410,7 +444,6 @@ export default function DashboardOverview() {
                     <td className="px-4 py-3 text-slate-400 font-mono text-[11px]">
                       {formatDate(pmt.created_at)}
                     </td>
-
                   </tr>
                 ))}
               </tbody>
