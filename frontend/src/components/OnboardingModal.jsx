@@ -190,6 +190,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
     phone: '',
     email: '',
     address: '',
+    industry_code: 'MOBILE_RETAIL',
     // Shop
     shop_code: '',
     shop_name: '',
@@ -425,7 +426,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                   onChange={(val) => setFormData(prev => ({ ...prev, industry_code: val }))}
                   options={INDUSTRY_OPTIONS}
                 />
-                <div>
+                <div className="col-span-2">
                   <label className="text-xs text-slate-400 font-medium block mb-1">Physical Address</label>
                   <input
                     type="text"

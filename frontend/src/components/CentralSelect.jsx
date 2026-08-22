@@ -14,6 +14,7 @@ import { ChevronDown, Check } from 'lucide-react';
  * - className?: Additional container styling
  * - fullWidth?: boolean (default true)
  * - error?: Error string
+ * - placement?: 'auto' | 'top' | 'bottom' (default 'auto')
  */
 export default function CentralSelect({
   value,
@@ -25,9 +26,58 @@ export default function CentralSelect({
   className = '',
   fullWidth = true,
   error,
+  placement = 'auto',
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
   const dropdownRef = useRef(null);
+  const menuRef = useRef(null);
+
+  // Position calculation for auto flip
+  useEffect(() => {
+    if (!isOpen || !dropdownRef.current) return;
+
+    if (placement === 'top') {
+      setDropUp(true);
+      return;
+    }
+    if (placement === 'bottom') {
+      setDropUp(false);
+      return;
+    }
+
+    const updatePosition = () => {
+      if (!dropdownRef.current) return;
+      const rect = dropdownRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelowViewport = viewportHeight - rect.bottom;
+      
+      // Also check nearest scrollable container
+      let spaceBelowContainer = spaceBelowViewport;
+      let spaceAboveContainer = rect.top;
+      
+      const scrollParent = dropdownRef.current.closest('.overflow-y-auto, .overflow-auto, [data-scroll-container]');
+      if (scrollParent) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        spaceBelowContainer = parentRect.bottom - rect.bottom;
+        spaceAboveContainer = rect.top - parentRect.top;
+      }
+
+      const effectiveSpaceBelow = Math.min(spaceBelowViewport, spaceBelowContainer);
+      const effectiveSpaceAbove = Math.min(rect.top, spaceAboveContainer);
+
+      // If less than 240px below and more room above, flip upward
+      if (effectiveSpaceBelow < 240 && effectiveSpaceAbove > effectiveSpaceBelow) {
+        setDropUp(true);
+      } else {
+        setDropUp(false);
+      }
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    return () => window.removeEventListener('resize', updatePosition);
+  }, [isOpen, placement]);
 
   // Close on outside click
   useEffect(() => {
@@ -40,10 +90,12 @@ export default function CentralSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close on Escape
+  // Close on Escape & Arrow navigation
   useEffect(() => {
     function handleKeyDown(e) {
-      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
     }
     if (isOpen) {
       document.addEventListener('keydown', handleKeyDown);
@@ -72,7 +124,7 @@ export default function CentralSelect({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full bg-slate-950/80 hover:bg-slate-900 border ${
+        className={`w-full bg-slate-950/90 hover:bg-slate-900 border ${
           error 
             ? 'border-rose-500/80 focus:border-rose-500' 
             : isOpen 
@@ -101,7 +153,13 @@ export default function CentralSelect({
 
       {/* Dropdown Menu Modal */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 bg-slate-900/95 backdrop-blur-2xl border border-slate-700/80 rounded-2xl p-1.5 shadow-2xl z-50 divide-y divide-slate-800/60 max-h-72 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+        <div 
+          ref={menuRef}
+          className={`absolute ${
+            dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+          } left-0 right-0 bg-slate-900/98 backdrop-blur-2xl border border-slate-700/90 rounded-2xl p-1.5 shadow-2xl z-[100] divide-y divide-slate-800/60 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95 duration-150 custom-scrollbar`}
+          style={{ boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 1px 1px rgba(255,255,255,0.05)' }}
+        >
           {options.length === 0 ? (
             <div className="p-3 text-center text-xs text-slate-500">No options available</div>
           ) : (
