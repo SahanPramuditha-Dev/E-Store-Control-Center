@@ -22,10 +22,13 @@ export default function LoginPage({ onLoginSuccess }) {
   const [touched, setTouched] = useState({ id: false, pwd: false });
 
   const navigate = useNavigate();
+  const searchParams = new URLSearchParams(window.location.search);
+  const logoutReason = searchParams.get('reason');
 
   useEffect(() => {
     localStorage.setItem('estore_theme', theme);
   }, [theme]);
+
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -206,6 +209,25 @@ export default function LoginPage({ onLoginSuccess }) {
             </p>
           </div>
 
+          {/* Session Termination Notice */}
+          {logoutReason === 'inactivity_timeout' && (
+            <div className="mb-5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs flex items-start gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="leading-snug font-semibold">
+                You were logged out automatically due to inactivity to protect administrative access.
+              </span>
+            </div>
+          )}
+
+          {logoutReason === 'multi_tab_logout' && (
+            <div className="mb-5 p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/30 text-sky-500 text-xs flex items-start gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="leading-snug font-semibold">
+                Your session was signed out from another browser tab.
+              </span>
+            </div>
+          )}
+
           {/* Error Notice */}
           {error && (
             <div className="mb-5 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-start gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -213,6 +235,7 @@ export default function LoginPage({ onLoginSuccess }) {
               <span className="leading-snug font-medium">{error}</span>
             </div>
           )}
+
 
           {/* CapsLock Warning */}
           {capsLockActive && (

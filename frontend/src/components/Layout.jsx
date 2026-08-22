@@ -9,12 +9,23 @@ import {
 import { useTheme } from './ThemeContext';
 import CommandPalette from './CommandPalette';
 import OnboardingModal from './OnboardingModal';
+import SessionTimeoutModal from './SessionTimeoutModal';
+import { useSessionSecurity } from '../hooks/useSessionSecurity';
 
 export default function Layout({ onLogout }) {
   const navigate = useNavigate();
   const { theme, toggleTheme, isDark } = useTheme();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+
+  // Initialize Enterprise Session Security & Inactivity Timeout
+  const {
+    isWarningOpen,
+    secondsRemaining,
+    stayLoggedIn,
+    logoutNow
+  } = useSessionSecurity(onLogout);
+
 
   const userStr = localStorage.getItem('estore_admin_user');
   const user = userStr ? JSON.parse(userStr) : { username: 'Sahan', role: 'SUPER_ADMIN' };
@@ -266,13 +277,20 @@ export default function Layout({ onLogout }) {
         </main>
       </div>
 
-      {/* Global Command Palette & Onboarding Modal */}
+      {/* Global Command Palette, Onboarding Modal & Session Security Modal */}
       <CommandPalette isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
       <OnboardingModal
         isOpen={isOnboardingOpen}
         onClose={() => setIsOnboardingOpen(false)}
         onSuccess={() => window.location.reload()}
       />
+      <SessionTimeoutModal
+        isOpen={isWarningOpen}
+        secondsRemaining={secondsRemaining}
+        onStayLoggedIn={stayLoggedIn}
+        onLogoutNow={logoutNow}
+      />
     </div>
   );
 }
+

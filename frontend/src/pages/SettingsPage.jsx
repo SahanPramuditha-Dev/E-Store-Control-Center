@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
 import { 
   Settings, Sliders, Database, Cloud, Key, 
   ShieldCheck, RefreshCw, Save, CheckCircle2, Wrench, 
-  Terminal, Globe, Mail, MessageSquare, Download 
+  Terminal, Globe, Mail, MessageSquare, Download,
+  Lock, Clock, Laptop, LogOut, ShieldAlert, User
 } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../components/ToastContext';
@@ -23,16 +23,29 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Session Security state
+  const [sessionTimeout, setSessionTimeout] = useState(() => {
+    return localStorage.getItem('estore_session_timeout_minutes') || '15';
+  });
+  const [sessionData, setSessionData] = useState(null);
+
   // Diagnostic tool tester state
   const [testKey, setTestKey] = useState('');
   const [validationResult, setValidationResult] = useState(null);
 
+
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/admin/settings');
-      if (Object.keys(res.data).length > 0) {
-        setSettings(prev => ({ ...prev, ...res.data }));
+      const [settingsRes, sessionRes] = await Promise.all([
+        api.get('/admin/settings').catch(() => ({ data: {} })),
+        api.get('/admin/auth/session-status').catch(() => ({ data: null }))
+      ]);
+      if (Object.keys(settingsRes.data).length > 0) {
+        setSettings(prev => ({ ...prev, ...settingsRes.data }));
+      }
+      if (sessionRes.data) {
+        setSessionData(sessionRes.data);
       }
     } catch (err) {
       showToast('Failed to load settings', 'error');
@@ -40,6 +53,24 @@ export default function SettingsPage() {
       setLoading(false);
     }
   };
+
+  const handleUpdateSessionTimeout = (minutes) => {
+    setSessionTimeout(minutes);
+    localStorage.setItem('estore_session_timeout_minutes', minutes);
+    showToast(`Inactivity auto-logout updated to ${minutes} minutes.`, 'success');
+  };
+
+  const handleManualLogout = async () => {
+    try {
+      await api.post('/admin/auth/logout').catch(() => {});
+    } finally {
+      localStorage.removeItem('estore_admin_token');
+      localStorage.removeItem('estore_admin_user');
+      localStorage.setItem('estore_logout_event', Date.now().toString());
+      window.location.href = '/login?reason=user_logout';
+    }
+  };
+
 
   useEffect(() => {
     fetchSettings();
@@ -123,7 +154,20 @@ export default function SettingsPage() {
         >
           License Validator & Tools
         </button>
+
+        <button
+          onClick={() => setActiveTab('security')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+            activeTab === 'security'
+              ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
+              : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Security & Sessions</span>
+        </button>
       </div>
+
 
       {/* Tab Content */}
       {activeTab === 'general' && (
@@ -279,6 +323,163 @@ export default function SettingsPage() {
           )}
         </div>
       )}
+
+      {/* Security & Active Sessions Tab */}
+      {activeTab === 'security' && (
+        <div className="space-y-6">
+          {/* Active Session Card */}
+          <div className={`p-6 sm:p-8 rounded-3xl border shadow-sm space-y-5 ${
+            isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-500 flex items-center justify-center font-bold">
+                  <User className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <span>{sessionData?.username || 'Sahan'}</span>
+                    <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400">
+                      {sessionData?.role || 'SUPER_ADMIN'}
+                    </span>
+                  </h3>
+                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {sessionData?.email || 'sahanpramuditha91@gmail.com'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleManualLogout}
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition active:scale-95"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out Active Session</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
+              <div className={`p-4 rounded-2xl border space-y-1 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <span className="text-slate-400 font-medium">Session Status</span>
+                <p className="text-teal-500 font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Authenticated & Active</span>
+                </p>
+              </div>
+
+              <div className={`p-4 rounded-2xl border space-y-1 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <span className="text-slate-400 font-medium">Client IP Address</span>
+                <p className={`font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {sessionData?.client_ip || '127.0.0.1 (Local Loopback)'}
+                </p>
+              </div>
+
+              <div className={`p-4 rounded-2xl border space-y-1 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <span className="text-slate-400 font-medium">Security Isolation</span>
+                <p className="text-sky-500 font-bold">
+                  Multi-Tab Synced
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Inactivity Auto-Logout Configuration */}
+          <div className={`p-6 sm:p-8 rounded-3xl border shadow-sm space-y-5 ${
+            isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <div>
+              <h3 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <Clock className="w-4 h-4 text-amber-500" />
+                Inactivity Auto-Logout Duration
+              </h3>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Automatically terminates the session when no mouse, keyboard, or touch events occur within the chosen timeframe.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: '5 Minutes', val: '5', sub: 'High Security' },
+                { label: '15 Minutes', val: '15', sub: 'Standard (Default)' },
+                { label: '30 Minutes', val: '30', sub: 'Extended' },
+                { label: '60 Minutes', val: '60', sub: 'Maximum Allowed' },
+              ].map((opt) => {
+                const isSelected = sessionTimeout === opt.val;
+                return (
+                  <button
+                    key={opt.val}
+                    type="button"
+                    onClick={() => handleUpdateSessionTimeout(opt.val)}
+                    className={`p-4 rounded-2xl border text-left transition-all duration-200 active:scale-95 ${
+                      isSelected
+                        ? isDark
+                          ? 'bg-teal-500/10 border-teal-500 text-white shadow-md shadow-teal-500/10'
+                          : 'bg-teal-50 border-teal-500 text-slate-900 shadow-xs'
+                        : isDark
+                          ? 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-xs">{opt.label}</span>
+                      {isSelected && <CheckCircle2 className="w-4 h-4 text-teal-500" />}
+                    </div>
+                    <p className={`text-[11px] ${isSelected ? 'text-teal-400' : 'text-slate-400'}`}>
+                      {opt.sub}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Enterprise Security Defenses Overview */}
+          <div className={`p-6 sm:p-8 rounded-3xl border shadow-sm space-y-4 ${
+            isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <h3 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <ShieldCheck className="w-4 h-4 text-teal-500" />
+              Active Platform Security Defenses
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className={`p-3.5 rounded-2xl border flex items-start gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">60-Second Warning Countdown</span>
+                  <p className="text-slate-400 text-[11px]">Displays an interactive warning modal before automatic session termination.</p>
+                </div>
+              </div>
+
+              <div className={`p-3.5 rounded-2xl border flex items-start gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Multi-Tab Session Lock Synchronization</span>
+                  <p className="text-slate-400 text-[11px]">Signing out in any browser tab immediately logs out and locks all other active tabs.</p>
+                </div>
+              </div>
+
+              <div className={`p-3.5 rounded-2xl border flex items-start gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Ed25519 Cryptographic Signatures</span>
+                  <p className="text-slate-400 text-[11px]">Asymmetric cryptography prevents license tampering or forgery offline.</p>
+                </div>
+              </div>
+
+              <div className={`p-3.5 rounded-2xl border flex items-start gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">HTTP Security Headers (HSTS, CSP, XSS)</span>
+                  <p className="text-slate-400 text-[11px]">Protects against clickjacking, MIME sniffing, and cross-site script injection.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
