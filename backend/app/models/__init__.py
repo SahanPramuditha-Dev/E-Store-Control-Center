@@ -469,4 +469,7 @@ class AuditLog(Base):
     record_hash = Column(String(64), nullable=True, index=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
 
+    admin_user = relationship("AdminUser")
+
+
 

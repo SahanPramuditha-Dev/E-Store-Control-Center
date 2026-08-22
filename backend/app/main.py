@@ -21,17 +21,43 @@ app = FastAPI(
     version="1.0.0"
 )
 
+allowed_origins = [
+    "https://e-store-control-center-frontend.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Enterprise Security Headers Middleware
 @app.middleware("http")
 async def add_security_headers(request, call_next):
+    # Handle preflight OPTIONS requests gracefully
+    if request.method == "OPTIONS":
+        origin = request.headers.get("origin", "*")
+        return JSONResponse(
+            status_code=200,
+            content={"status": "ok"},
+            headers={
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+                "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Origin, X-Requested-With",
+            }
+        )
+
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
