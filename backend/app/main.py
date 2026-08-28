@@ -11,18 +11,19 @@ from app.database import engine, Base, get_db
 import app.models
 from app.routers import license_router, admin_auth_router, admin_management_router
 
-# Auto-create tables for local SQLite development
-if settings.DATABASE_URL.startswith("sqlite"):
-    try:
-        Base.metadata.create_all(bind=engine)
-    except Exception:
-        pass
-
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Centralized License Management & Verification Engine for E-Store ERP",
     version="1.0.0"
 )
+
+@app.on_event("startup")
+def on_startup():
+    if settings.DATABASE_URL.startswith("sqlite"):
+        try:
+            Base.metadata.create_all(bind=engine)
+        except Exception:
+            pass
 
 # Gzip Response Compression (75-85% smaller payloads)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
