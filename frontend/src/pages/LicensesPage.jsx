@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { 
   Key, Plus, RefreshCw, Copy, Check, RotateCcw, 
   AlertTriangle, X, Loader2, Ban, PlayCircle, History, 
@@ -9,20 +10,50 @@ import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
 import { formatDate, formatDateTime } from '../utils/dateUtils';
 import TokenInspectorModal from '../components/TokenInspectorModal';
+import { Select, Button, Badge, PageHeader, Modal, ConfirmModal, EmptyState, DropdownMenu } from '../components/UI';
 
 export default function LicensesPage() {
   const { showToast } = useToast();
   const { isDark } = useTheme();
-  const [licenses, setLicenses] = useState([]);
+  const [licenses, setLicenses] = useState(() => {
+    try {
+      const c = sessionStorage.getItem('estore_licenses');
+      return c ? JSON.parse(c) : [];
+    } catch {
+      return [];
+    }
+  });
 
-  const [tenants, setTenants] = useState([]);
-  const [shops, setShops] = useState([]);
-  const [packages, setPackages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [tenants, setTenants] = useState(() => {
+    try {
+      const c = sessionStorage.getItem('estore_tenants');
+      return c ? JSON.parse(c) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [shops, setShops] = useState(() => {
+    try {
+      const c = sessionStorage.getItem('estore_shops');
+      return c ? JSON.parse(c) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [packages, setPackages] = useState(() => {
+    try {
+      const c = sessionStorage.getItem('estore_packages');
+      return c ? JSON.parse(c) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem('estore_licenses'));
   const [copiedKey, setCopiedKey] = useState(null);
 
   // Filters & Search
-  const [searchQuery, setSearchQuery] = useState('');
+  const searchParams = new URLSearchParams(window.location.search);
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('tenant') || '');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [packageFilter, setPackageFilter] = useState('ALL');
 
@@ -66,22 +97,23 @@ export default function LicensesPage() {
 
   const fetchData = async () => {
     try {
-      setLoading(true);
-      const [licRes, tenantsRes, shopsRes, pkgRes] = await Promise.all([
-        api.get('/admin/licenses'),
-        api.get('/admin/tenants'),
-        api.get('/admin/shops'),
-        api.get('/admin/packages')
+      if (licenses.length === 0) setLoading(true);
+      const [lData, tData, sData, pkgRes] = await Promise.all([
+        api.getCached('/admin/licenses'),
+        api.getCached('/admin/tenants'),
+        api.getCached('/admin/shops'),
+        api.getCached('/admin/packages')
       ]);
-      setLicenses(licRes.data);
-      setTenants(tenantsRes.data);
-      setShops(shopsRes.data);
-      const pkgList = pkgRes.data.packages || [];
+      const pkgList = pkgRes?.packages || [];
+
+      setLicenses(Array.isArray(lData) ? lData : []);
+      setTenants(Array.isArray(tData) ? tData : []);
+      setShops(Array.isArray(sData) ? sData : []);
       setPackages(pkgList);
 
-      if (tenantsRes.data.length > 0) {
-        const firstTenant = tenantsRes.data[0];
-        const firstShop = shopsRes.data.find(s => s.tenant_id === firstTenant.id);
+      if (tData?.length > 0) {
+        const firstTenant = tData[0];
+        const firstShop = sData.find(s => s.tenant_id === firstTenant.id);
         const defaultPkg = pkgList.find(p => p.code === 'BUSINESS') || pkgList[0];
         setIssueForm(prev => ({
           ...prev,
@@ -204,30 +236,35 @@ export default function LicensesPage() {
   const handleActionLicense = async (e) => {
     e.preventDefault();
     if (!selectedLicense) return;
-    setSubmitting(true);
+    const targetStatus = actionType === 'suspend' ? 'SUSPENDED' : 'REVOKED';
+    const prevLicenses = [...licenses];
+    setLicenses(prev => prev.map(l => l.id === selectedLicense.id ? { ...l, status: targetStatus } : l));
+    showToast(`License ${actionType}ed successfully.`, 'success');
+    setShowActionModal(false);
+    
     try {
       const endpoint = actionType === 'suspend' 
         ? `/admin/licenses/${selectedLicense.id}/suspend` 
         : `/admin/licenses/${selectedLicense.id}/revoke`;
       await api.post(endpoint, { reason: actionReason });
-      showToast(`License ${actionType}ed successfully.`, 'success');
-      setShowActionModal(false);
       setActionReason('');
-      fetchData();
+      api.clearCache('/admin/licenses');
     } catch (err) {
-      showToast(err.response?.data?.detail || 'Action failed', 'error');
-    } finally {
-      setSubmitting(false);
+      setLicenses(prevLicenses);
+      showToast(err.response?.data?.detail || 'Action failed on server. Reverted.', 'error');
     }
   };
 
   const handleReactivate = async (lic) => {
+    const prevLicenses = [...licenses];
+    setLicenses(prev => prev.map(l => l.id === lic.id ? { ...l, status: 'ACTIVE' } : l));
+    showToast('License reactivated successfully.', 'success');
     try {
       await api.post(`/admin/licenses/${lic.id}/reactivate`);
-      showToast('License reactivated successfully.', 'success');
-      fetchData();
+      api.clearCache('/admin/licenses');
     } catch (err) {
-      showToast('Reactivation failed', 'error');
+      setLicenses(prevLicenses);
+      showToast('Reactivation failed on server. Reverted.', 'error');
     }
   };
 
@@ -268,54 +305,50 @@ export default function LicensesPage() {
 
     const matchesStatus = statusFilter === 'ALL' || lic.status === statusFilter;
     const matchesPackage = packageFilter === 'ALL' || lic.package_code === packageFilter;
-
     return matchesSearch && matchesStatus && matchesPackage;
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            License Management
-          </h1>
-          <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Generate, sign, extend, and audit Ed25519 cryptographic tokens for client shops.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchData}
-            className={`p-2.5 rounded-2xl border transition shadow-xs active:scale-95 ${
-              isDark 
-                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
-                : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
-            }`}
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={handleExportCSV}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold border transition shadow-xs active:scale-95 ${
-              isDark 
-                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
-                : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
-            }`}
-          >
-            <FileSpreadsheet className="w-4 h-4 text-teal-500" />
-            <span>Export CSV</span>
-          </button>
-          <button
-            onClick={() => setShowIssueModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-2xl text-xs transition shadow-md shadow-teal-500/20 active:scale-95 hover:-translate-y-0.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Issue New License</span>
-          </button>
-        </div>
-      </div>
+    <div className="space-y-7 max-w-7xl mx-auto animate-in fade-in duration-300">
+      {/* Centralized Page Header */}
+      <PageHeader
+        eyebrow="Ed25519 Cryptographic Infrastructure"
+        title="Software Licenses & Cryptographic Keys"
+        subtitle="Generate, sign, extend, inspect, and audit asymmetric digital licenses for client shops and POS hardware terminals"
+        badges={[
+          { label: `${licenses.length} Total Licenses`, tone: 'indigo' },
+          { label: `${licenses.filter(l => l.status === 'ACTIVE').length} Active Tokens`, tone: 'emerald' },
+        ]}
+        actions={
+          <div className="flex items-center gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleExportCSV}
+              icon={FileSpreadsheet}
+            >
+              Export CSV
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={fetchData}
+              icon={RefreshCw}
+              loading={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="purple-gradient"
+              size="sm"
+              onClick={() => setShowIssueModal(true)}
+              icon={Plus}
+            >
+              Issue New License
+            </Button>
+          </div>
+        }
+      />
 
       {/* Filter & Search Bar */}
       <div className={`flex flex-col md:flex-row gap-3 p-4 rounded-3xl border shadow-sm ${
@@ -330,41 +363,46 @@ export default function LicensesPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full rounded-2xl pl-10 pr-4 py-2.5 text-xs focus:outline-none transition border ${
               isDark 
-                ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-teal-500' 
-                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-teal-600'
+                ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500' 
+                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-600'
             }`}
           />
         </div>
 
-        <div className="flex gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className={`rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none border ${
-              isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-            }`}
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="ACTIVE">ACTIVE</option>
-            <option value="PENDING">PENDING</option>
-            <option value="EXPIRING">EXPIRING</option>
-            <option value="EXPIRED">EXPIRED</option>
-            <option value="SUSPENDED">SUSPENDED</option>
-            <option value="REVOKED">REVOKED</option>
-          </select>
+        <div className="flex gap-2.5">
+          <div className="w-40 shrink-0">
+            <Select
+              value={statusFilter}
+              onChange={(val) => setStatusFilter(val)}
+              options={[
+                { value: 'ALL', label: 'All Statuses' },
+                { value: 'ACTIVE', label: 'Active', badge: 'Live' },
+                { value: 'PENDING', label: 'Pending', badge: 'Wait' },
+                { value: 'EXPIRING', label: 'Expiring', badge: '<30D' },
+                { value: 'EXPIRED', label: 'Expired', badge: 'Past' },
+                { value: 'SUSPENDED', label: 'Suspended', badge: 'Lock' },
+                { value: 'REVOKED', label: 'Revoked', badge: 'Void' },
+              ]}
+              size="md"
+              fullWidth
+            />
+          </div>
 
-          <select
-            value={packageFilter}
-            onChange={(e) => setPackageFilter(e.target.value)}
-            className={`rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none border ${
-              isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-            }`}
-          >
-            <option value="ALL">All Packages</option>
-            {packages.map((pkg) => (
-              <option key={pkg.id} value={pkg.code}>{pkg.name || pkg.code}</option>
-            ))}
-          </select>
+          <div className="w-44 shrink-0">
+            <Select
+              value={packageFilter}
+              onChange={(val) => setPackageFilter(val)}
+              options={[
+                { value: 'ALL', label: 'All Packages' },
+                ...packages.map((pkg) => ({
+                  value: pkg.code,
+                  label: pkg.name || pkg.code,
+                }))
+              ]}
+              size="md"
+              fullWidth
+            />
+          </div>
         </div>
       </div>
 
@@ -393,14 +431,31 @@ export default function LicensesPage() {
               {loading && licenses.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-slate-500">
-                    <Loader2 className="w-6 h-6 text-teal-500 animate-spin mx-auto mb-2" />
+                    <Loader2 className="w-6 h-6 text-indigo-400 animate-spin mx-auto mb-2" />
                     Loading licenses...
                   </td>
                 </tr>
               ) : filteredLicenses.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
-                    No licenses match your search criteria.
+                  <td colSpan={7} className="py-8">
+                    <EmptyState
+                      icon={Key}
+                      title="No Licenses Found"
+                      description="No licenses match your current search query or package/status filters."
+                      action={
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setStatusFilter('ALL');
+                            setPackageFilter('ALL');
+                          }}
+                        >
+                          Clear Filters
+                        </Button>
+                      }
+                    />
                   </td>
                 </tr>
               ) : (
@@ -413,18 +468,18 @@ export default function LicensesPage() {
                     <tr key={lic.id} className={`transition ${isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50/80'}`}>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-teal-500 select-all">
+                          <span className="font-mono font-bold text-indigo-400 select-all">
                             {lic.license_key}
                           </span>
                           <button
                             onClick={() => handleCopy(lic.license_key)}
                             title="Copy License Key"
                             className={`p-1 rounded-lg transition ${
-                              isDark ? 'text-slate-400 hover:text-teal-400 hover:bg-slate-800' : 'text-slate-500 hover:text-teal-600 hover:bg-slate-100'
+                              isDark ? 'text-slate-400 hover:text-indigo-400 hover:bg-slate-800' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-100'
                             }`}
                           >
                             {copiedKey === lic.license_key ? (
-                              <Check className="w-3.5 h-3.5 text-teal-500" />
+                              <Check className="w-3.5 h-3.5 text-indigo-400" />
                             ) : (
                               <Copy className="w-3.5 h-3.5" />
                             )}
@@ -442,7 +497,7 @@ export default function LicensesPage() {
 
                       <td className="px-5 py-4">
                         <span className={`px-2.5 py-1 rounded-xl text-[10px] font-bold font-mono border ${
-                          isDark ? 'bg-slate-800 text-teal-400 border-slate-700' : 'bg-slate-100 text-teal-700 border-slate-200'
+                          isDark ? 'bg-slate-800 text-indigo-400 border-slate-700' : 'bg-slate-100 text-indigo-700 border-slate-200'
                         }`}>
                           {lic.package_code}
                         </span>
@@ -450,7 +505,7 @@ export default function LicensesPage() {
 
                       <td className="px-5 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide border ${
-                          isActive ? (isDark ? 'bg-teal-500/10 text-teal-400 border-teal-500/30' : 'bg-teal-50 text-teal-700 border-teal-200') :
+                          isActive ? (isDark ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' : 'bg-indigo-50 text-indigo-700 border-indigo-200') :
                           isSuspended ? (isDark ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-amber-50 text-amber-700 border-amber-200') :
                           isRevoked ? (isDark ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' : 'bg-rose-50 text-rose-700 border-rose-200') :
                           'bg-slate-100 text-slate-700 border-slate-200'
@@ -490,7 +545,7 @@ export default function LicensesPage() {
                             }}
                             title="Inspect Asymmetric Ed25519 Token"
                             className={`p-1.5 rounded-xl border transition ${
-                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-teal-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-teal-700 border-slate-200'
+                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-indigo-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-indigo-700 border-slate-200'
                             }`}
                           >
                             <ShieldCheck className="w-3.5 h-3.5" />
@@ -501,7 +556,7 @@ export default function LicensesPage() {
                             onClick={() => openQrModal(lic)}
                             title="Scan QR to Pair Mobile POS"
                             className={`p-1.5 rounded-xl border transition ${
-                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-teal-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-teal-700 border-slate-200'
+                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-indigo-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-indigo-700 border-slate-200'
                             }`}
                           >
                             <QrCode className="w-3.5 h-3.5" />
@@ -540,7 +595,7 @@ export default function LicensesPage() {
                             }}
                             title="Renew License Duration"
                             className={`p-1.5 rounded-xl border transition ${
-                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-teal-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-teal-700 border-slate-200'
+                              isDark ? 'bg-slate-800/80 hover:bg-slate-700 text-indigo-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-indigo-700 border-slate-200'
                             }`}
                           >
                             <PlayCircle className="w-3.5 h-3.5" />
@@ -568,7 +623,7 @@ export default function LicensesPage() {
                               onClick={() => handleReactivate(lic)}
                               title="Reactivate License"
                               className={`p-1.5 rounded-xl border transition ${
-                                isDark ? 'bg-slate-800/80 hover:bg-teal-900/40 text-teal-400 border-slate-700' : 'bg-slate-100 hover:bg-teal-50 text-teal-700 border-slate-200'
+                                isDark ? 'bg-slate-800/80 hover:bg-indigo-950/40 text-indigo-400 border-slate-700' : 'bg-slate-100 hover:bg-indigo-50 text-indigo-700 border-slate-200'
                               }`}
                             >
                               <PlayCircle className="w-3.5 h-3.5" />
@@ -612,7 +667,7 @@ export default function LicensesPage() {
           <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">
                   <Key className="w-4 h-4" />
                 </div>
                 <h2 className="text-base font-bold text-white">Generate Cryptographic License</h2>
@@ -626,73 +681,77 @@ export default function LicensesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-400 mb-1">Select Tenant</label>
-                  <select
+                  <Select
                     value={issueForm.tenant_id}
-                    onChange={(e) => {
-                      const tId = e.target.value;
-                      const relatedShop = shops.find(s => s.tenant_id.toString() === tId);
+                    onChange={(val) => {
+                      const relatedShop = shops.find(s => s.tenant_id.toString() === String(val));
                       setIssueForm({
                         ...issueForm,
-                        tenant_id: tId,
+                        tenant_id: String(val),
                         shop_id: relatedShop ? relatedShop.id.toString() : ''
                       });
                     }}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
-                    required
-                  >
-                    {tenants.map(t => (
-                      <option key={t.id} value={t.id}>{t.company_name} ({t.tenant_code})</option>
-                    ))}
-                  </select>
+                    options={tenants.map(t => ({
+                      value: String(t.id),
+                      label: `${t.company_name} (${t.tenant_code})`,
+                    }))}
+                    placeholder="Choose tenant..."
+                    size="md"
+                    fullWidth
+                  />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-slate-400 mb-1">Branch Shop</label>
-                  <select
+                  <Select
                     value={issueForm.shop_id}
-                    onChange={(e) => setIssueForm({ ...issueForm, shop_id: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
-                    required
-                  >
-                    {shops
-                      .filter(s => s.tenant_id.toString() === issueForm.tenant_id)
-                      .map(s => (
-                        <option key={s.id} value={s.id}>{s.shop_name} ({s.shop_code})</option>
-                      ))}
-                  </select>
+                    onChange={(val) => setIssueForm({ ...issueForm, shop_id: String(val) })}
+                    options={shops
+                      .filter(s => s.tenant_id.toString() === String(issueForm.tenant_id))
+                      .map(s => ({
+                        value: String(s.id),
+                        label: `${s.shop_name} (${s.shop_code})`,
+                      }))}
+                    placeholder="Select shop branch..."
+                    size="md"
+                    fullWidth
+                  />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-slate-400 mb-1">Package Tier</label>
-                  <select
+                  <Select
                     value={issueForm.package_code}
-                    onChange={(e) => {
-                      const selectedPkg = packages.find(p => p.code === e.target.value);
+                    onChange={(val) => {
+                      const selectedPkg = packages.find(p => p.code === val);
                       setIssueForm({
                         ...issueForm,
-                        package_code: e.target.value,
+                        package_code: val,
                         payment_amount: selectedPkg ? selectedPkg.price_lkr : issueForm.payment_amount
                       });
                     }}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
-                  >
-                    {packages.map(p => (
-                      <option key={p.id} value={p.code}>{p.name} (Rs {p.price_lkr.toLocaleString()})</option>
-                    ))}
-                  </select>
+                    options={packages.map(p => ({
+                      value: p.code,
+                      label: `${p.name} (Rs ${p.price_lkr.toLocaleString()})`,
+                    }))}
+                    size="md"
+                    fullWidth
+                  />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-slate-400 mb-1">License Duration</label>
-                  <select
+                  <Select
                     value={issueForm.license_type}
-                    onChange={(e) => setIssueForm({ ...issueForm, license_type: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
-                  >
-                    <option value="ANNUAL">Annual (365 Days)</option>
-                    <option value="TRIAL">Trial (14 Days)</option>
-                    <option value="LIFETIME">Lifetime License</option>
-                  </select>
+                    onChange={(val) => setIssueForm({ ...issueForm, license_type: val })}
+                    options={[
+                      { value: 'ANNUAL', label: 'Annual (365 Days)' },
+                      { value: 'TRIAL', label: 'Trial (14 Days)' },
+                      { value: 'LIFETIME', label: 'Lifetime License' },
+                    ]}
+                    size="md"
+                    fullWidth
+                  />
                 </div>
 
                 <div>
@@ -703,7 +762,7 @@ export default function LicensesPage() {
                     max="50"
                     value={issueForm.max_machines}
                     onChange={(e) => setIssueForm({ ...issueForm, max_machines: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none font-mono"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-indigo-500 focus:outline-none font-mono"
                   />
                 </div>
 
@@ -713,7 +772,7 @@ export default function LicensesPage() {
                     type="number"
                     value={issueForm.payment_amount}
                     onChange={(e) => setIssueForm({ ...issueForm, payment_amount: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none font-mono"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-indigo-500 focus:outline-none font-mono"
                   />
                 </div>
               </div>
@@ -729,7 +788,7 @@ export default function LicensesPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-teal-500/20"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-500/25"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Generate Signed Key</span>
@@ -765,7 +824,7 @@ export default function LicensesPage() {
                   placeholder="e.g. Motherboard replacement, new cashier PC installed..."
                   value={resetReason}
                   onChange={(e) => setResetReason(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-indigo-500 focus:outline-none"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
@@ -806,14 +865,16 @@ export default function LicensesPage() {
             <form onSubmit={handleRenewLicense} className="space-y-4 mt-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-400 mb-1">Extend Validity By</label>
-                <select
+                <Select
                   value={renewForm.validity_days}
-                  onChange={(e) => setRenewForm({ ...renewForm, validity_days: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
-                >
-                  <option value="365">1 Year Extension (365 Days)</option>
-                  <option value="730">2 Years Extension (730 Days)</option>
-                </select>
+                  onChange={(val) => setRenewForm({ ...renewForm, validity_days: val })}
+                  options={[
+                    { value: '365', label: '1 Year Extension (365 Days)' },
+                    { value: '730', label: '2 Years Extension (730 Days)' },
+                  ]}
+                  size="md"
+                  fullWidth
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -822,7 +883,7 @@ export default function LicensesPage() {
                     type="number"
                     value={renewForm.payment_amount}
                     onChange={(e) => setRenewForm({ ...renewForm, payment_amount: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none font-mono"
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-indigo-500 focus:outline-none font-mono"
                   />
                 </div>
                 <div>
@@ -832,7 +893,7 @@ export default function LicensesPage() {
                     placeholder="TX-RENEW-1122"
                     value={renewForm.payment_reference}
                     onChange={(e) => setRenewForm({ ...renewForm, payment_reference: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none font-mono"
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-indigo-500 focus:outline-none font-mono"
                   />
                 </div>
               </div>
@@ -847,7 +908,7 @@ export default function LicensesPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-teal-500/20"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-500/25"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Save & Renew</span>
@@ -880,7 +941,7 @@ export default function LicensesPage() {
                   placeholder={`Provide justification for ${actionType}ing this license...`}
                   value={actionReason}
                   onChange={(e) => setActionReason(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-teal-500 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:border-indigo-500 focus:outline-none"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
@@ -912,7 +973,7 @@ export default function LicensesPage() {
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <div>
                 <h2 className="text-base font-bold text-white">License Lifecycle Audit Trail</h2>
-                <p className="text-xs font-mono text-teal-400">{selectedLicense?.license_key}</p>
+                <p className="text-xs font-mono text-indigo-400">{selectedLicense?.license_key}</p>
               </div>
               <button onClick={() => setShowHistoryModal(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -922,7 +983,7 @@ export default function LicensesPage() {
             <div className="flex-1 overflow-y-auto py-4 space-y-4 text-xs">
               {historyLoading ? (
                 <div className="text-center py-8 text-slate-500">
-                  <Loader2 className="w-6 h-6 text-teal-400 animate-spin mx-auto mb-2" />
+                  <Loader2 className="w-6 h-6 text-indigo-400 animate-spin mx-auto mb-2" />
                   Loading history...
                 </div>
               ) : historyData?.events?.length === 0 ? (
@@ -930,7 +991,7 @@ export default function LicensesPage() {
               ) : (
                 historyData?.events?.map((ev) => (
                   <div key={ev.id} className="p-3 bg-slate-950 rounded-2xl border border-slate-800 flex items-start gap-3">
-                    <div className="w-2 h-2 rounded-full bg-teal-400 mt-1.5 shrink-0" />
+                    <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-white uppercase tracking-wider">{ev.event_type}</span>
@@ -968,7 +1029,7 @@ export default function LicensesPage() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="text-left">
                 <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Mobile POS Pairing</h3>
-                <p className="text-[11px] text-teal-400 font-mono">{selectedLicense.license_key}</p>
+                <p className="text-[11px] text-indigo-400 font-mono">{selectedLicense.license_key}</p>
               </div>
               <button onClick={() => setShowQrModal(false)} className="text-slate-400 hover:text-white p-1">
                 <X className="w-4 h-4" />
@@ -1019,7 +1080,7 @@ export default function LicensesPage() {
 
             <button
               onClick={() => handleCopy(selectedLicense.license_key)}
-              className="w-full py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-2xl text-xs font-bold transition active:scale-95"
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition active:scale-95"
             >
               Copy Raw Token String
             </button>

@@ -74,7 +74,7 @@ export default function SessionTimeoutModal({ isOpen, secondsRemaining, onStayLo
           <button
             type="button"
             onClick={onStayLoggedIn}
-            className="flex items-center justify-center gap-2 p-3 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-extrabold rounded-2xl transition shadow-lg shadow-teal-500/25 active:scale-95 hover:-translate-y-0.5"
+            className="flex items-center justify-center gap-2 p-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold rounded-2xl transition shadow-lg shadow-indigo-600/25 active:scale-95 hover:-translate-y-0.5 cursor-pointer"
           >
             <RefreshCw className="w-4 h-4" />
             <span>Stay Logged In</span>

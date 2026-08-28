@@ -82,27 +82,27 @@ const PACKAGE_OPTIONS = [
     label: 'Business Pro Plan (Rs 95,000)',
     desc: 'Multi-device & full industry workflows',
     icon: Crown,
-    color: 'text-teal-400',
-    bg: 'bg-teal-500/10',
-    border: 'border-teal-500/25',
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/25',
   },
   {
     value: 'BUSINESS_AI',
     label: 'iStore Business AI (Rs 145,000)',
     desc: 'AI forecasting, demand & smart ledger',
     icon: Sparkles,
-    color: 'text-indigo-400',
-    bg: 'bg-indigo-500/10',
-    border: 'border-indigo-500/25',
+    color: 'text-purple-400',
+    bg: 'bg-purple-500/10',
+    border: 'border-purple-500/25',
   },
   {
     value: 'ENTERPRISE',
     label: 'Enterprise AI Suite (Rs 250,000)',
     desc: 'Multi-branch warehouse & unlimited seats',
     icon: Shield,
-    color: 'text-purple-400',
-    bg: 'bg-purple-500/10',
-    border: 'border-purple-500/25',
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/25',
   },
 ];
 
@@ -112,9 +112,9 @@ const LICENSE_TYPE_OPTIONS = [
     label: 'Annual License (365 Days)',
     desc: 'Standard commercial 1-year entitlement',
     icon: Clock,
-    color: 'text-teal-400',
-    bg: 'bg-teal-500/10',
-    border: 'border-teal-500/25',
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/25',
   },
   {
     value: 'TRIAL',
@@ -142,9 +142,9 @@ const PAYMENT_METHOD_OPTIONS = [
     label: 'Bank Transfer / Deposit',
     desc: 'Direct corporate account transfer or slip upload',
     icon: Landmark,
-    color: 'text-teal-400',
-    bg: 'bg-teal-500/10',
-    border: 'border-teal-500/25',
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/25',
   },
   {
     value: 'CASH',
@@ -169,9 +169,9 @@ const PAYMENT_METHOD_OPTIONS = [
     label: 'Online Gateway Payment',
     desc: 'Payment link, Stripe / PayHere gateway',
     icon: Globe,
-    color: 'text-indigo-400',
-    bg: 'bg-indigo-500/10',
-    border: 'border-indigo-500/25',
+    color: 'text-purple-400',
+    bg: 'bg-purple-500/10',
+    border: 'border-purple-500/25',
   },
 ];
 
@@ -303,12 +303,12 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
       <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/60">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
+            <div className="w-9 h-9 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-sm">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -327,13 +327,13 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
         {/* Step Indicator */}
         {step < 4 && (
           <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950/20 text-xs">
-            <div className={`p-3 text-center font-medium border-b-2 transition ${step === 1 ? 'border-teal-400 text-teal-400 bg-teal-500/5' : 'border-transparent text-slate-400'}`}>
+            <div className={`p-3 text-center font-bold border-b-2 transition ${step === 1 ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10' : 'border-transparent text-slate-400'}`}>
               1. Organization
             </div>
-            <div className={`p-3 text-center font-medium border-b-2 transition ${step === 2 ? 'border-teal-400 text-teal-400 bg-teal-500/5' : 'border-transparent text-slate-400'}`}>
+            <div className={`p-3 text-center font-bold border-b-2 transition ${step === 2 ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10' : 'border-transparent text-slate-400'}`}>
               2. Branch & Package
             </div>
-            <div className={`p-3 text-center font-medium border-b-2 transition ${step === 3 ? 'border-teal-400 text-teal-400 bg-teal-500/5' : 'border-transparent text-slate-400'}`}>
+            <div className={`p-3 text-center font-bold border-b-2 transition ${step === 3 ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10' : 'border-transparent text-slate-400'}`}>
               3. Billing & Review
             </div>
           </div>
@@ -343,33 +343,33 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
         <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-24">
           {step === 1 && (
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-teal-400" />
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-indigo-400" />
                 Tenant / Enterprise Profile
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Company / Business Name *</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">Company / Business Name *</label>
                   <input
                     type="text"
                     name="company_name"
                     value={formData.company_name}
                     onChange={handleChange}
                     placeholder="e.g. Apex Cellular Ltd"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition"
                     required
                   />
                 </div>
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs text-slate-400 font-medium">Tenant Code (Unique ID) *</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs text-slate-300 font-semibold">Tenant Code (Unique ID) *</label>
                     <button
                       type="button"
                       onClick={() => {
                         const code = (formData.company_name || 'SHOP').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8) || 'TENANT';
                         setFormData(prev => ({ ...prev, tenant_code: code }));
                       }}
-                      className="text-[10px] text-teal-400 hover:text-teal-300 font-bold inline-flex items-center gap-1 transition cursor-pointer"
+                      className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold inline-flex items-center gap-1 transition cursor-pointer"
                     >
                       <RefreshCw size={10} /> Auto-Generate
                     </button>
@@ -380,55 +380,55 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     value={formData.tenant_code}
                     onChange={handleChange}
                     placeholder="e.g. APEXMOBI or IPOINTHQ"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-teal-500 uppercase"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 uppercase transition"
                     required
                   />
                   <p className="text-[10px] text-slate-500 mt-1">Unique slug used in database isolation & license cryptographic signing.</p>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Contact Person *</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">Contact Person *</label>
                   <input
                     type="text"
                     name="contact_name"
                     value={formData.contact_name}
                     onChange={handleChange}
                     placeholder="e.g. John Doe"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Phone Number *</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">Phone Number *</label>
                   <input
                     type="text"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
                     placeholder="e.g. +94 77 123 4567"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Email Address</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">Email Address</label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="e.g. billing@apex.lk"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Physical Address</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">Physical Address</label>
                   <input
                     type="text"
                     name="address"
                     value={formData.address}
                     onChange={handleChange}
                     placeholder="e.g. 120 Galle Road, Colombo 03"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition"
                   />
                 </div>
                 <div className="col-span-2">
@@ -445,44 +445,44 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
 
           {step === 2 && (
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Store className="w-4 h-4 text-sky-400" />
                 First Branch Outlet & Software Plan
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Branch Name *</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">Branch Name *</label>
                   <input
                     type="text"
                     name="shop_name"
                     value={formData.shop_name}
                     onChange={handleChange}
                     placeholder="e.g. Main Flagship Store"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Branch Code *</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">Branch Code *</label>
                   <input
                     type="text"
                     name="shop_code"
                     value={formData.shop_code}
                     onChange={handleChange}
                     placeholder="e.g. APEX-HQ"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-teal-500 uppercase"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 uppercase transition"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">City / Region</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">City / Region</label>
                   <input
                     type="text"
                     name="city"
                     value={formData.city}
                     onChange={handleChange}
                     placeholder="e.g. Colombo"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition"
                   />
                 </div>
                 <CentralSelect
@@ -520,7 +520,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                   options={LICENSE_TYPE_OPTIONS}
                 />
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Max Authorized Terminals (PCs)</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">Max Authorized Terminals (PCs)</label>
                   <input
                     type="number"
                     name="max_machines"
@@ -528,7 +528,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     max="50"
                     value={formData.max_machines}
                     onChange={handleChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition"
                   />
                 </div>
               </div>
@@ -537,7 +537,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
 
           {step === 3 && (
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-amber-400" />
                 Initial Invoice & Payment Recording
               </h3>
@@ -552,7 +552,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Selected Tier:</span>
-                  <span className="font-semibold text-teal-300">{formData.package_code} ({formData.license_type})</span>
+                  <span className="font-semibold text-indigo-300">{formData.package_code} ({formData.license_type})</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Terminal Quota:</span>
@@ -562,13 +562,13 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Payment Amount (LKR)</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">Payment Amount (LKR)</label>
                   <input
                     type="number"
                     name="payment_amount"
                     value={formData.payment_amount}
                     onChange={handleChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500 font-mono"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 font-mono transition"
                   />
                 </div>
                 <CentralSelect
@@ -578,14 +578,14 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                   options={PAYMENT_METHOD_OPTIONS}
                 />
                 <div className="col-span-2">
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Payment Reference / Cheque No</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">Payment Reference / Cheque No</label>
                   <input
                     type="text"
                     name="payment_reference"
                     value={formData.payment_reference}
                     onChange={handleChange}
                     placeholder="e.g. TXN-99881234 or Bank Slip Number"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition"
                   />
                 </div>
               </div>
@@ -594,7 +594,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
 
           {step === 4 && result && (
             <div className="text-center py-4 space-y-5">
-              <div className="w-16 h-16 rounded-3xl bg-teal-500/10 border border-teal-500/30 text-teal-400 flex items-center justify-center mx-auto shadow-xl shadow-teal-500/10">
+              <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center mx-auto shadow-xl shadow-indigo-500/10">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
 
@@ -606,20 +606,20 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
               </div>
 
               {/* License Key Box */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-teal-500/30 text-left space-y-3">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-indigo-500/30 text-left space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-teal-400">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-indigo-400">
                     Generated License Key
                   </span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-300 font-mono">
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 font-mono">
                     {result.package_code}
                   </span>
                 </div>
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between font-mono text-sm text-teal-300 select-all">
+                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between font-mono text-sm text-indigo-300 select-all">
                   <span className="truncate">{result.license_key}</span>
                   <button
                     onClick={copyLicenseKey}
-                    className="p-1.5 rounded-lg bg-teal-500/20 text-teal-300 hover:bg-teal-500/30 transition shrink-0 ml-2"
+                    className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 transition shrink-0 ml-2 cursor-pointer"
                     title="Copy License Key"
                   >
                     <Copy className="w-4 h-4" />
@@ -636,14 +636,14 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
               <div className="flex gap-3 justify-center">
                 <button
                   onClick={handleDownloadToken}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
                 >
-                  <Download className="w-4 h-4 text-teal-400" />
+                  <Download className="w-4 h-4 text-indigo-400" />
                   Download Offline Token (.json)
                 </button>
                 <button
                   onClick={onClose}
-                  className="px-6 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold transition shadow-lg shadow-teal-500/20"
+                  className="px-6 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-lg shadow-indigo-600/25 cursor-pointer"
                 >
                   Done & Close
                 </button>
@@ -660,7 +660,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                 type="button"
                 onClick={handlePrev}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-slate-300 hover:bg-slate-800 text-xs font-medium transition"
+                className="flex items-center gap-2 px-4 py-2 rounded-2xl text-slate-300 hover:bg-slate-800 text-xs font-medium transition cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Previous
@@ -673,7 +673,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
               <button
                 type="button"
                 onClick={handleNext}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold transition shadow-md shadow-teal-500/20"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-md shadow-indigo-600/20 cursor-pointer"
               >
                 Continue
                 <ArrowRight className="w-4 h-4" />
@@ -683,7 +683,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                 type="button"
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold transition shadow-md shadow-teal-500/20 disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white text-xs font-bold transition shadow-md shadow-indigo-500/25 disabled:opacity-50 cursor-pointer"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 Complete Onboarding
@@ -695,3 +695,4 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
     </div>
   );
 }
+

@@ -193,11 +193,116 @@ class LicenseService:
             return False, "Machine is not authorized for this license", None
 
         now = datetime.now(timezone.utc)
-        machine.last_seen_at = now
-        if app_version:
-            machine.app_version = app_version
-        license_obj.last_validated_at = now
-        db.commit()
+        
+        # Heartbeat write-throttling: only write to DB if > 5 minutes (300s) have passed since last write
+        should_write = False
+        if not machine.last_seen_at or (now - machine.last_seen_at.replace(tzinfo=timezone.utc if machine.last_seen_at.tzinfo is None else machine.last_seen_at.tzinfo)).total_seconds() > 300:
+            machine.last_seen_at = now
+            if app_version:
+                machine.app_version = app_version
+            license_obj.last_validated_at = now
+            should_write = True
+
+        if should_write:
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
 
         token = cls.generate_signed_token_for_license(db, license_obj, machine_fingerprint)
-        return True, "License validated", token
+        return True, "License validated successfully", token
+
+    @classmethod
+    def transfer_machine(
+        cls,
+        db: Session,
+        license_key: str,
+        new_machine_fingerprint: str,
+        old_machine_fingerprint: Optional[str] = None,
+        new_machine_name: Optional[str] = "Replacement POS",
+        platform: Optional[str] = "Windows",
+        app_version: Optional[str] = "1.0.0",
+        ip_address: Optional[str] = None
+    ) -> Tuple[bool, str, Optional[SignedLicenseToken]]:
+        """
+        Transfers an active license binding from an old machine to a new machine,
+        enforcing the replacement limit and generating a fresh signed token.
+        """
+        from sqlalchemy import func
+        clean_key = license_key.strip().upper()
+        license_obj = db.query(License).filter(func.upper(func.trim(License.license_key)) == clean_key).first()
+        if not license_obj:
+            return False, "Invalid license key", None
+
+        if license_obj.status in [LicenseStatus.REVOKED, LicenseStatus.SUSPENDED]:
+            return False, f"License is {license_obj.status.value}. Transfer prohibited.", None
+
+        if license_obj.replacement_count >= license_obj.replacement_limit:
+            return False, f"Machine transfer limit reached ({license_obj.replacement_limit} replacements allowed). Please contact support to reset quota.", None
+
+        now = datetime.now(timezone.utc)
+
+        # Deactivate old machine(s)
+        if old_machine_fingerprint:
+            old_machines = db.query(Machine).filter(
+                Machine.license_id == license_obj.id,
+                Machine.machine_fingerprint == old_machine_fingerprint.strip()
+            ).all()
+        else:
+            old_machines = db.query(Machine).filter(
+                Machine.license_id == license_obj.id,
+                Machine.status == MachineStatus.ACTIVE
+            ).all()
+
+        for om in old_machines:
+            om.status = MachineStatus.DEACTIVATED
+
+        # Check if new machine already exists or create new
+        new_m = db.query(Machine).filter(
+            Machine.license_id == license_obj.id,
+            Machine.machine_fingerprint == new_machine_fingerprint.strip()
+        ).first()
+
+        if not new_m:
+            new_m = Machine(
+                tenant_id=license_obj.tenant_id,
+                shop_id=license_obj.shop_id,
+                license_id=license_obj.id,
+                machine_fingerprint=new_machine_fingerprint.strip(),
+                machine_name=new_machine_name,
+                platform=platform or "Windows",
+                app_version=app_version,
+                ip_address=ip_address or "127.0.0.1",
+                status=MachineStatus.ACTIVE,
+                first_activated_at=now,
+                last_seen_at=now
+            )
+            db.add(new_m)
+        else:
+            new_m.status = MachineStatus.ACTIVE
+            new_m.machine_name = new_machine_name
+            new_m.last_seen_at = now
+            new_m.app_version = app_version
+            if ip_address:
+                new_m.ip_address = ip_address
+
+        license_obj.replacement_count += 1
+        license_obj.status = LicenseStatus.ACTIVE
+        license_obj.last_validated_at = now
+
+        # Record License Event
+        event = LicenseEvent(
+            license_id=license_obj.id,
+            event_type=LicenseEventType.MACHINE_RESET,
+            from_state=license_obj.status.value,
+            to_state=LicenseStatus.ACTIVE.value,
+            actor="MERCHANT_SELF_SERVICE",
+            notes=f"Self-service machine transfer to {new_machine_fingerprint} ({new_machine_name}). Replacement #{license_obj.replacement_count}/{license_obj.replacement_limit}"
+        )
+        db.add(event)
+        db.commit()
+        db.refresh(license_obj)
+
+        token = cls.generate_signed_token_for_license(db, license_obj, new_machine_fingerprint.strip())
+        remaining = license_obj.replacement_limit - license_obj.replacement_count
+        return True, f"Machine successfully transferred to new hardware. Remaining transfers: {remaining}", token

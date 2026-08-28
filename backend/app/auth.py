@@ -61,6 +61,8 @@ def create_impersonation_token(tenant_code: str, operator_username: str, expires
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
+_ADMIN_CACHE = {}
+
 def get_current_admin(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
@@ -87,12 +89,21 @@ def get_current_admin(
     except JWTError:
         raise credentials_exception
 
+    # Check fast in-memory cache (60s TTL)
+    import time
+    now_ts = time.time()
+    cached = _ADMIN_CACHE.get(username)
+    if cached and now_ts < cached[1]:
+        return cached[0]
+
     user = db.query(AdminUser).filter(
         (AdminUser.username == username) | (AdminUser.email == username),
         AdminUser.is_active == True
     ).first()
     if user is None:
         raise credentials_exception
+
+    _ADMIN_CACHE[username] = (user, now_ts + 60.0)
     return user
 
 

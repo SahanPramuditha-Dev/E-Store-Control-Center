@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, ForeignKey, Table, Text, Float, Enum, JSON
+    Column, Integer, String, Boolean, DateTime, ForeignKey, Table, Text, Float, Enum, JSON, Index
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -125,6 +125,11 @@ class Tenant(Base):
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
 
+    __table_args__ = (
+        Index("idx_tenants_status_deleted", "status", "is_deleted"),
+        Index("idx_tenants_created_at", "created_at"),
+    )
+
     shops = relationship("Shop", back_populates="tenant")
     licenses = relationship("License", back_populates="tenant")
     payments = relationship("Payment", back_populates="tenant")
@@ -134,6 +139,10 @@ class Tenant(Base):
 
 class Shop(Base):
     __tablename__ = "shops"
+
+    __table_args__ = (
+        Index("idx_shops_tenant_deleted", "tenant_id", "is_deleted"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
@@ -200,6 +209,12 @@ class Package(Base):
 class License(Base):
     __tablename__ = "licenses"
 
+    __table_args__ = (
+        Index("idx_licenses_tenant_status", "tenant_id", "status"),
+        Index("idx_licenses_expires_at", "expires_at"),
+        Index("idx_licenses_shop_id", "shop_id"),
+    )
+
     id = Column(Integer, primary_key=True, index=True)
     license_key = Column(String(100), unique=True, index=True, nullable=False)
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
@@ -239,6 +254,12 @@ class License(Base):
 class Machine(Base):
     __tablename__ = "machines"
 
+    __table_args__ = (
+        Index("idx_machines_license_status", "license_id", "status"),
+        Index("idx_machines_fingerprint", "machine_fingerprint"),
+        Index("idx_machines_last_seen", "last_seen_at"),
+    )
+
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     shop_id = Column(Integer, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False)
@@ -253,6 +274,11 @@ class Machine(Base):
     status = Column(Enum(MachineStatus), default=MachineStatus.ACTIVE, nullable=False)
     first_activated_at = Column(DateTime, default=utcnow, nullable=False)
     last_seen_at = Column(DateTime, default=utcnow, nullable=False)
+    
+    # Telemetry & Remote Control
+    telemetry_json = Column(JSON, default=dict, nullable=True)
+    pending_commands = Column(JSON, default=list, nullable=True)
+    uptime_seconds = Column(Integer, default=0, nullable=True)
 
     shop = relationship("Shop", back_populates="machines")
     license = relationship("License", back_populates="machines")
@@ -295,6 +321,11 @@ class Activation(Base):
 
 class Payment(Base):
     __tablename__ = "payments"
+
+    __table_args__ = (
+        Index("idx_payments_tenant_created", "tenant_id", "created_at"),
+        Index("idx_payments_license_id", "license_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
@@ -457,6 +488,11 @@ class AdminUser(Base):
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
+
+    __table_args__ = (
+        Index("idx_audit_logs_created_at", "created_at"),
+        Index("idx_audit_logs_entity", "entity_type", "entity_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     admin_user_id = Column(Integer, ForeignKey("admin_users.id", ondelete="SET NULL"), nullable=True)

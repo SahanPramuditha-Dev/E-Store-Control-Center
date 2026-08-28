@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { 
   Settings, Sliders, Database, Cloud, Key, 
   ShieldCheck, RefreshCw, Save, CheckCircle2, Wrench, 
@@ -7,6 +8,7 @@ import {
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { Select, Button, Badge, PageHeader } from '../components/UI';
 
 export default function SettingsPage() {
   const { showToast } = useToast();
@@ -32,7 +34,6 @@ export default function SettingsPage() {
   // Diagnostic tool tester state
   const [testKey, setTestKey] = useState('');
   const [validationResult, setValidationResult] = useState(null);
-
 
   const fetchSettings = async () => {
     try {
@@ -71,7 +72,6 @@ export default function SettingsPage() {
     }
   };
 
-
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -105,18 +105,28 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Platform Settings & Diagnostic Tools
-          </h1>
-          <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Global SaaS configuration, third-party integrations, database backup management, and diagnostic utilities
-          </p>
-        </div>
-      </div>
+    <div className="space-y-7 max-w-7xl mx-auto animate-in fade-in duration-300">
+      {/* Centralized Page Header */}
+      <PageHeader
+        eyebrow="System Configuration & Diagnostics"
+        title="Platform Settings & Diagnostic Tools"
+        subtitle="Global SaaS configuration, third-party integrations, database backup management, and diagnostic utilities"
+        badges={[
+          { label: 'Cloud Synchronized', tone: 'emerald' },
+          { label: 'Ed25519 Engine', tone: 'indigo' },
+        ]}
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={fetchSettings}
+            icon={RefreshCw}
+            loading={loading}
+          >
+            Refresh
+          </Button>
+        }
+      />
 
       {/* Tabs */}
       <div className={`p-1.5 rounded-2xl border flex gap-2 w-fit overflow-x-auto ${
@@ -124,9 +134,9 @@ export default function SettingsPage() {
       }`}>
         <button
           onClick={() => setActiveTab('general')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
             activeTab === 'general'
-              ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
               : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -135,9 +145,9 @@ export default function SettingsPage() {
 
         <button
           onClick={() => setActiveTab('integrations')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
             activeTab === 'integrations'
-              ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
               : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -146,9 +156,9 @@ export default function SettingsPage() {
 
         <button
           onClick={() => setActiveTab('diagnostics')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
             activeTab === 'diagnostics'
-              ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
               : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -157,9 +167,9 @@ export default function SettingsPage() {
 
         <button
           onClick={() => setActiveTab('security')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 ${
             activeTab === 'security'
-              ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
               : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
           }`}
         >
@@ -167,7 +177,6 @@ export default function SettingsPage() {
           <span>Security & Sessions</span>
         </button>
       </div>
-
 
       {/* Tab Content */}
       {activeTab === 'general' && (
@@ -186,7 +195,7 @@ export default function SettingsPage() {
                 value={settings.platform_name}
                 onChange={(e) => setSettings({ ...settings, platform_name: e.target.value })}
                 className={`w-full px-3 py-2.5 rounded-2xl border focus:outline-none ${
-                  isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                  isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-indigo-600'
                 }`}
               />
             </div>
@@ -198,7 +207,7 @@ export default function SettingsPage() {
                 value={settings.default_currency}
                 onChange={(e) => setSettings({ ...settings, default_currency: e.target.value })}
                 className={`w-full px-3 py-2.5 rounded-2xl border focus:outline-none font-mono ${
-                  isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                  isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-indigo-600'
                 }`}
               />
             </div>
@@ -210,7 +219,7 @@ export default function SettingsPage() {
                 value={settings.default_timezone}
                 onChange={(e) => setSettings({ ...settings, default_timezone: e.target.value })}
                 className={`w-full px-3 py-2.5 rounded-2xl border focus:outline-none font-mono ${
-                  isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                  isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-indigo-600'
                 }`}
               />
             </div>
@@ -222,7 +231,7 @@ export default function SettingsPage() {
                 value={settings.storage_provider}
                 onChange={(e) => setSettings({ ...settings, storage_provider: e.target.value })}
                 className={`w-full px-3 py-2.5 rounded-2xl border focus:outline-none ${
-                  isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                  isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-indigo-600'
                 }`}
               />
             </div>
@@ -232,7 +241,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-2xl text-xs transition shadow-md shadow-teal-500/20 active:scale-95"
+              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-2xl text-xs transition shadow-md shadow-indigo-500/25 active:scale-95"
             >
               <Save className="w-4 h-4" />
               <span>{saving ? 'Saving...' : 'Save Configuration'}</span>
@@ -281,7 +290,7 @@ export default function SettingsPage() {
         }`}>
           <div>
             <h2 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              <Wrench className="w-4 h-4 text-teal-500" />
+              <Wrench className="w-4 h-4 text-indigo-400" />
               Ed25519 Cryptographic License Key Validator
             </h2>
             <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -296,13 +305,13 @@ export default function SettingsPage() {
               value={testKey}
               onChange={(e) => setTestKey(e.target.value)}
               className={`flex-1 px-4 py-2.5 rounded-2xl text-xs font-mono focus:outline-none border ${
-                isDark ? 'bg-slate-950 border-slate-800 text-teal-400 focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-teal-800 focus:border-teal-600'
+                isDark ? 'bg-slate-950 border-slate-800 text-indigo-400 focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-indigo-800 focus:border-indigo-600'
               }`}
             />
             <button
               type="button"
               onClick={handleValidateTestKey}
-              className="px-5 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-2xl text-xs transition shadow-md shadow-teal-500/20 active:scale-95"
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-2xl text-xs transition shadow-md shadow-indigo-500/25 active:scale-95"
             >
               Verify Signature
             </button>
@@ -310,7 +319,7 @@ export default function SettingsPage() {
 
           {validationResult && (
             <div className={`p-5 rounded-2xl border space-y-2 text-xs font-mono ${
-              isDark ? 'bg-slate-950 border-teal-500/30 text-teal-400' : 'bg-teal-50 border-teal-200 text-teal-900'
+              isDark ? 'bg-slate-950 border-indigo-500/30 text-indigo-400' : 'bg-indigo-50 border-indigo-200 text-indigo-900'
             }`}>
               <div className="flex items-center gap-2 font-bold text-sm">
                 <CheckCircle2 className="w-4 h-4" />
@@ -333,13 +342,13 @@ export default function SettingsPage() {
           }`}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-500 flex items-center justify-center font-bold">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">
                   <User className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     <span>{sessionData?.username || 'Sahan'}</span>
-                    <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400">
+                    <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
                       {sessionData?.role || 'SUPER_ADMIN'}
                     </span>
                   </h3>
@@ -362,7 +371,7 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
               <div className={`p-4 rounded-2xl border space-y-1 ${isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                 <span className="text-slate-400 font-medium">Session Status</span>
-                <p className="text-teal-500 font-bold flex items-center gap-1.5">
+                <p className="text-indigo-400 font-bold flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Authenticated & Active</span>
                 </p>
@@ -414,8 +423,8 @@ export default function SettingsPage() {
                     className={`p-4 rounded-2xl border text-left transition-all duration-200 active:scale-95 ${
                       isSelected
                         ? isDark
-                          ? 'bg-teal-500/10 border-teal-500 text-white shadow-md shadow-teal-500/10'
-                          : 'bg-teal-50 border-teal-500 text-slate-900 shadow-xs'
+                          ? 'bg-indigo-500/10 border-indigo-500 text-white shadow-md shadow-indigo-500/15'
+                          : 'bg-indigo-50 border-indigo-500 text-slate-900 shadow-xs'
                         : isDark
                           ? 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
                           : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
@@ -423,9 +432,9 @@ export default function SettingsPage() {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-xs">{opt.label}</span>
-                      {isSelected && <CheckCircle2 className="w-4 h-4 text-teal-500" />}
+                      {isSelected && <CheckCircle2 className="w-4 h-4 text-indigo-400" />}
                     </div>
-                    <p className={`text-[11px] ${isSelected ? 'text-teal-400' : 'text-slate-400'}`}>
+                    <p className={`text-[11px] ${isSelected ? 'text-indigo-400' : 'text-slate-400'}`}>
                       {opt.sub}
                     </p>
                   </button>
@@ -439,13 +448,13 @@ export default function SettingsPage() {
             isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
           }`}>
             <h3 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              <ShieldCheck className="w-4 h-4 text-teal-500" />
+              <ShieldCheck className="w-4 h-4 text-indigo-400" />
               Active Platform Security Defenses
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
               <div className={`p-3.5 rounded-2xl border flex items-start gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">60-Second Warning Countdown</span>
                   <p className="text-slate-400 text-[11px]">Displays an interactive warning modal before automatic session termination.</p>
@@ -453,7 +462,7 @@ export default function SettingsPage() {
               </div>
 
               <div className={`p-3.5 rounded-2xl border flex items-start gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Multi-Tab Session Lock Synchronization</span>
                   <p className="text-slate-400 text-[11px]">Signing out in any browser tab immediately logs out and locks all other active tabs.</p>
@@ -461,7 +470,7 @@ export default function SettingsPage() {
               </div>
 
               <div className={`p-3.5 rounded-2xl border flex items-start gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Ed25519 Cryptographic Signatures</span>
                   <p className="text-slate-400 text-[11px]">Asymmetric cryptography prevents license tampering or forgery offline.</p>
@@ -469,7 +478,7 @@ export default function SettingsPage() {
               </div>
 
               <div className={`p-3.5 rounded-2xl border flex items-start gap-3 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">HTTP Security Headers (HSTS, CSP, XSS)</span>
                   <p className="text-slate-400 text-[11px]">Protects against clickjacking, MIME sniffing, and cross-site script injection.</p>

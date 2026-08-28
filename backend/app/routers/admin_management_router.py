@@ -1,11 +1,12 @@
 import json
 import hashlib
 from datetime import datetime, timezone, timedelta
+import time
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, desc, text
 
 
 from app.database import get_db
@@ -32,6 +33,17 @@ class TenantCreate(BaseModel):
     phone: str
     email: Optional[str] = None
     address: Optional[str] = None
+
+class TenantUpdateRequest(BaseModel):
+    company_name: Optional[str] = None
+    contact_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    status: Optional[str] = None
+    country: Optional[str] = None
+    currency: Optional[str] = None
+    timezone: Optional[str] = None
 
 class ShopCreate(BaseModel):
     tenant_id: int
@@ -108,7 +120,7 @@ def log_admin_action(db: Session, admin_id: int, action: str, entity_type: str, 
     import hashlib
     # Fetch last audit log record for cryptographic hash chaining
     last_log = db.query(AuditLog).order_by(desc(AuditLog.id)).first()
-    prev_hash = last_log.record_hash if last_log and last_log.record_hash else "GENESIS_ROOT_000000000000000000000000000000000000000000000000000000000000"
+    prev_hash = last_log.record_hash if last_log and last_log.record_hash else "0" * 64
     
     details_str = json.dumps(details or {}, sort_keys=True)
     raw_payload = f"{prev_hash}:{admin_id}:{action}:{entity_type}:{entity_id}:{details_str}"
@@ -136,34 +148,88 @@ def format_dt_utc(dt: Optional[datetime]) -> Optional[str]:
 
 
 
+# In-memory dashboard cache
+_DASHBOARD_CACHE = {"data": None, "expires_at": 0.0}
+
+def invalidate_dashboard_cache():
+    _DASHBOARD_CACHE["data"] = None
+    _DASHBOARD_CACHE["expires_at"] = 0.0
+
 # --- Endpoints ---
 
-# 1. Dashboard Overview Stats
+# 1. Dashboard Overview Stats (Optimized with Batched Aggregations & Caching)
 @router.get("/dashboard/stats")
 @router.get("/dashboard/stats/")
 def get_dashboard_stats(
     db: Session = Depends(get_db),
     admin: AdminUser = Depends(get_current_admin)
 ):
-    total_tenants = db.query(Tenant).filter(Tenant.is_deleted == False).count()
-    total_shops = db.query(Shop).filter(Shop.is_deleted == False).count()
-    total_licenses = db.query(License).count()
-    active_licenses = db.query(License).filter(License.status == LicenseStatus.ACTIVE).count()
-    suspended_licenses = db.query(License).filter(License.status == LicenseStatus.SUSPENDED).count()
-    active_machines = db.query(Machine).filter(Machine.status == MachineStatus.ACTIVE).count()
-    
-    total_revenue = db.query(func.sum(Payment.amount_lkr)).scalar() or 0.0
+    now_ts = time.time()
+    if _DASHBOARD_CACHE["data"] and now_ts < _DASHBOARD_CACHE["expires_at"]:
+        return _DASHBOARD_CACHE["data"]
 
     now = datetime.now(timezone.utc)
     soon_30d = now + timedelta(days=30)
-    expiring_soon = db.query(License).filter(
-        License.status == LicenseStatus.ACTIVE,
-        License.expires_at != None,
-        License.expires_at <= soon_30d
-    ).count()
+    past_30d = now - timedelta(days=30)
+    prev_past_60d = now - timedelta(days=60)
+    past_1y = now - timedelta(days=365)
 
-    # Expiring licenses list
-    expiring_licenses_query = db.query(License).filter(
+    # 1. Consolidated global stats & growth metrics query in 1 single network roundtrip
+    agg_row = db.execute(text("""
+        SELECT
+            (SELECT COUNT(*) FROM tenants WHERE is_deleted = false) AS total_tenants,
+            (SELECT COUNT(*) FROM shops WHERE is_deleted = false) AS total_shops,
+            (SELECT COUNT(*) FROM licenses) AS total_licenses,
+            (SELECT COUNT(*) FROM licenses WHERE status = 'ACTIVE') AS active_licenses,
+            (SELECT COUNT(*) FROM licenses WHERE status = 'SUSPENDED') AS suspended_licenses,
+            (SELECT COUNT(*) FROM machines WHERE status = 'ACTIVE') AS active_machines,
+            (SELECT COALESCE(SUM(amount_lkr), 0.0) FROM payments) AS total_revenue,
+            (SELECT COUNT(*) FROM licenses WHERE status = 'ACTIVE' AND expires_at IS NOT NULL AND expires_at <= :soon_30d) AS expiring_soon,
+            (SELECT COALESCE(SUM(amount_lkr), 0.0) FROM payments WHERE created_at >= :past_30d) AS rev_last_30d,
+            (SELECT COALESCE(SUM(amount_lkr), 0.0) FROM payments WHERE created_at >= :prev_past_60d AND created_at < :past_30d) AS rev_prev_30d,
+            (SELECT COUNT(*) FROM tenants WHERE created_at >= :past_30d AND is_deleted = false) AS tenants_last_30d,
+            (SELECT COUNT(*) FROM tenants WHERE created_at >= :prev_past_60d AND created_at < :past_30d AND is_deleted = false) AS tenants_prev_30d,
+            (SELECT COUNT(*) FROM machines WHERE first_activated_at >= :past_30d) AS devices_last_30d,
+            (SELECT COUNT(*) FROM machines WHERE first_activated_at >= :prev_past_60d AND first_activated_at < :past_30d) AS devices_prev_30d,
+            (SELECT COUNT(*) FROM licenses WHERE issued_at >= :past_30d) AS licenses_last_30d,
+            (SELECT COUNT(*) FROM licenses WHERE issued_at >= :prev_past_60d AND issued_at < :past_30d) AS licenses_prev_30d
+    """), {
+        "soon_30d": soon_30d,
+        "past_30d": past_30d,
+        "prev_past_60d": prev_past_60d
+    }).mappings().first()
+
+    total_tenants = int(agg_row["total_tenants"] or 0)
+    total_shops = int(agg_row["total_shops"] or 0)
+    total_licenses = int(agg_row["total_licenses"] or 0)
+    active_licenses = int(agg_row["active_licenses"] or 0)
+    suspended_licenses = int(agg_row["suspended_licenses"] or 0)
+    active_machines = int(agg_row["active_machines"] or 0)
+    total_revenue = float(agg_row["total_revenue"] or 0.0)
+    expiring_soon = int(agg_row["expiring_soon"] or 0)
+
+    rev_last_30d = float(agg_row["rev_last_30d"] or 0.0)
+    rev_prev_30d = float(agg_row["rev_prev_30d"] or 0.0)
+    rev_growth_pct = round(((rev_last_30d - rev_prev_30d) / rev_prev_30d * 100), 1) if rev_prev_30d > 0 else (100.0 if rev_last_30d > 0 else 0.0)
+
+    tenants_last_30d = int(agg_row["tenants_last_30d"] or 0)
+    tenants_prev_30d = int(agg_row["tenants_prev_30d"] or 0)
+    tenants_growth_pct = round(((tenants_last_30d - tenants_prev_30d) / tenants_prev_30d * 100), 1) if tenants_prev_30d > 0 else (100.0 if tenants_last_30d > 0 else 0.0)
+
+    devices_last_30d = int(agg_row["devices_last_30d"] or 0)
+    devices_prev_30d = int(agg_row["devices_prev_30d"] or 0)
+    devices_growth_pct = round(((devices_last_30d - devices_prev_30d) / devices_prev_30d * 100), 1) if devices_prev_30d > 0 else (100.0 if devices_last_30d > 0 else 0.0)
+
+    licenses_last_30d = int(agg_row["licenses_last_30d"] or 0)
+    licenses_prev_30d = int(agg_row["licenses_prev_30d"] or 0)
+    licenses_growth_pct = round(((licenses_last_30d - licenses_prev_30d) / licenses_prev_30d * 100), 1) if licenses_prev_30d > 0 else (100.0 if licenses_last_30d > 0 else 0.0)
+
+    # 2. Expiring licenses list (Eager-loaded)
+    expiring_licenses_query = db.query(License).options(
+        joinedload(License.tenant),
+        joinedload(License.shop),
+        joinedload(License.package)
+    ).filter(
         License.status == LicenseStatus.ACTIVE,
         License.expires_at != None,
         License.expires_at <= soon_30d
@@ -185,7 +251,12 @@ def get_dashboard_stats(
             "days_left": days_left
         })
 
-    recent_payments = db.query(Payment).order_by(Payment.created_at.desc()).limit(8).all()
+    # 3. Recent payments (Eager-loaded)
+    recent_payments = db.query(Payment).options(
+        joinedload(Payment.tenant),
+        joinedload(Payment.shop)
+    ).order_by(Payment.created_at.desc()).limit(8).all()
+
     recent_payments_data = []
     for p in recent_payments:
         recent_payments_data.append({
@@ -199,8 +270,11 @@ def get_dashboard_stats(
             "created_at": p.created_at.isoformat() if p.created_at else None
         })
 
-    # Recent Audit Activity Feed
-    recent_audits = db.query(AuditLog).order_by(AuditLog.id.desc()).limit(8).all()
+    # 4. Recent Audit Activity Feed (Eager-loaded)
+    recent_audits = db.query(AuditLog).options(
+        joinedload(AuditLog.admin_user)
+    ).order_by(AuditLog.id.desc()).limit(8).all()
+
     audit_list = []
     for a in recent_audits:
         admin_name = a.admin_user.username if a.admin_user else "System Engine"
@@ -215,7 +289,7 @@ def get_dashboard_stats(
             "created_at": a.created_at.isoformat() if a.created_at else None
         })
 
-    # Industry distribution
+    # 5. Industry distribution
     industry_map = {
         'MOBILE_RETAIL': 'Mobile Retail & Repair',
         'GROCERY': 'Supermarket & Grocery',
@@ -235,37 +309,24 @@ def get_dashboard_stats(
             "percentage": round((count / total_tenants * 100), 1) if total_tenants > 0 else 0
         })
 
-    # Growth & Period Metrics (MoM)
-    past_30d = now - timedelta(days=30)
-    prev_past_60d = now - timedelta(days=60)
-    
-    rev_last_30d = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= past_30d).scalar() or 0.0
-    rev_prev_30d = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= prev_past_60d, Payment.created_at < past_30d).scalar() or 0.0
-    rev_growth_pct = round(((rev_last_30d - rev_prev_30d) / rev_prev_30d * 100), 1) if rev_prev_30d > 0 else (100.0 if rev_last_30d > 0 else 0.0)
+    # 6. Timeline series (Fast in-memory aggregation)
+    all_recent_payments = db.query(Payment.amount_lkr, Payment.created_at).filter(Payment.created_at >= past_1y).all()
+    all_active_machines = db.query(Machine.first_activated_at).filter(Machine.status == MachineStatus.ACTIVE).all()
 
-    tenants_last_30d = db.query(Tenant).filter(Tenant.created_at >= past_30d, Tenant.is_deleted == False).count()
-    tenants_prev_30d = db.query(Tenant).filter(Tenant.created_at >= prev_past_60d, Tenant.created_at < past_30d, Tenant.is_deleted == False).count()
-    tenants_growth_pct = round(((tenants_last_30d - tenants_prev_30d) / tenants_prev_30d * 100), 1) if tenants_prev_30d > 0 else (100.0 if tenants_last_30d > 0 else 0.0)
+    def get_rev_and_devs(start_dt, end_dt):
+        rev = sum(float(p[0] or 0.0) for p in all_recent_payments if p[1] and (p[1].replace(tzinfo=timezone.utc) if p[1].tzinfo is None else p[1]) >= start_dt and (p[1].replace(tzinfo=timezone.utc) if p[1].tzinfo is None else p[1]) < end_dt)
+        devs = sum(1 for m in all_active_machines if m[0] and (m[0].replace(tzinfo=timezone.utc) if m[0].tzinfo is None else m[0]) <= end_dt)
+        return rev, devs
 
-    devices_last_30d = db.query(Machine).filter(Machine.first_activated_at >= past_30d).count()
-    devices_prev_30d = db.query(Machine).filter(Machine.first_activated_at >= prev_past_60d, Machine.first_activated_at < past_30d).count()
-    devices_growth_pct = round(((devices_last_30d - devices_prev_30d) / devices_prev_30d * 100), 1) if devices_prev_30d > 0 else (100.0 if devices_last_30d > 0 else 0.0)
-
-    licenses_last_30d = db.query(License).filter(License.issued_at >= past_30d).count()
-    licenses_prev_30d = db.query(License).filter(License.issued_at >= prev_past_60d, License.issued_at < past_30d).count()
-    licenses_growth_pct = round(((licenses_last_30d - licenses_prev_30d) / licenses_prev_30d * 100), 1) if licenses_prev_30d > 0 else (100.0 if licenses_last_30d > 0 else 0.0)
-
-    # Dynamic time-series points based on actual records
     timeline_7d = []
     for i in range(6, -1, -1):
         day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
-        day_rev = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= day_start, Payment.created_at < day_end).scalar() or 0.0
-        day_devs = db.query(Machine).filter(Machine.first_activated_at <= day_end, Machine.status == MachineStatus.ACTIVE).count()
+        day_rev, day_devs = get_rev_and_devs(day_start, day_end)
         timeline_7d.append({
             "label": day_start.strftime("%a"),
             "full_date": day_start.strftime("%b %d"),
-            "revenue": float(day_rev),
+            "revenue": day_rev,
             "devices": day_devs
         })
 
@@ -273,12 +334,11 @@ def get_dashboard_stats(
     for i in range(4, 0, -1):
         w_start = (now - timedelta(days=i*7)).replace(hour=0, minute=0, second=0, microsecond=0)
         w_end = w_start + timedelta(days=7)
-        w_rev = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= w_start, Payment.created_at < w_end).scalar() or 0.0
-        w_devs = db.query(Machine).filter(Machine.first_activated_at <= w_end, Machine.status == MachineStatus.ACTIVE).count()
+        w_rev, w_devs = get_rev_and_devs(w_start, w_end)
         timeline_30d.append({
             "label": f"Wk {5-i}",
             "full_date": f"{w_start.strftime('%b %d')} - {w_end.strftime('%b %d')}",
-            "revenue": float(w_rev),
+            "revenue": w_rev,
             "devices": w_devs
         })
 
@@ -286,12 +346,11 @@ def get_dashboard_stats(
     for i in range(3, 0, -1):
         m_start = (now - timedelta(days=i*30)).replace(hour=0, minute=0, second=0, microsecond=0)
         m_end = m_start + timedelta(days=30)
-        m_rev = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= m_start, Payment.created_at < m_end).scalar() or 0.0
-        m_devs = db.query(Machine).filter(Machine.first_activated_at <= m_end, Machine.status == MachineStatus.ACTIVE).count()
+        m_rev, m_devs = get_rev_and_devs(m_start, m_end)
         timeline_90d.append({
             "label": m_start.strftime("%b"),
             "full_date": m_start.strftime("%B %Y"),
-            "revenue": float(m_rev),
+            "revenue": m_rev,
             "devices": m_devs
         })
 
@@ -299,16 +358,15 @@ def get_dashboard_stats(
     for i in range(11, -1, -1):
         m_start = (now - timedelta(days=i*30)).replace(hour=0, minute=0, second=0, microsecond=0)
         m_end = m_start + timedelta(days=30)
-        m_rev = db.query(func.sum(Payment.amount_lkr)).filter(Payment.created_at >= m_start, Payment.created_at < m_end).scalar() or 0.0
-        m_devs = db.query(Machine).filter(Machine.first_activated_at <= m_end, Machine.status == MachineStatus.ACTIVE).count()
+        m_rev, m_devs = get_rev_and_devs(m_start, m_end)
         timeline_1y.append({
             "label": m_start.strftime("%b"),
             "full_date": m_start.strftime("%B %Y"),
-            "revenue": float(m_rev),
+            "revenue": m_rev,
             "devices": m_devs
         })
 
-    return {
+    payload = {
         "total_tenants": total_tenants,
         "total_shops": total_shops,
         "total_licenses": total_licenses,
@@ -341,25 +399,50 @@ def get_dashboard_stats(
         }
     }
 
-# 2. Tenant Management
+    _DASHBOARD_CACHE["data"] = payload
+    _DASHBOARD_CACHE["expires_at"] = time.time() + 30.0  # 30-second cache
+    return payload
+
+# 2. Tenant Management (Eager-Loaded)
 @router.get("/tenants")
-@router.get("/organizations")
 def list_tenants(db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
-    tenants = db.query(Tenant).all()
-    return [
-        {
+    tenants = db.query(Tenant).options(
+        joinedload(Tenant.licenses).joinedload(License.package),
+        joinedload(Tenant.shops)
+    ).filter(Tenant.is_deleted == False).all()
+    results = []
+    for t in tenants:
+        active_lic = next((l for l in t.licenses if l.status == LicenseStatus.ACTIVE), t.licenses[0] if t.licenses else None)
+        pkg = active_lic.package if active_lic else None
+        plan_code = pkg.code if pkg else "BUSINESS"
+        storage_limit = float(pkg.storage_gb) if pkg and pkg.storage_gb else 50.0
+        tx_limit = int(pkg.monthly_transactions_limit) if pkg and pkg.monthly_transactions_limit else 25000
+
+        results.append({
             "id": t.id,
             "tenant_code": t.tenant_code,
             "company_name": t.company_name,
             "contact_name": t.contact_name,
             "phone": t.phone,
             "email": t.email,
-            "status": t.status.value,
-            "shops_count": len(t.shops),
-            "licenses_count": len(t.licenses),
-            "created_at": t.created_at.isoformat()
-        } for t in tenants
-    ]
+            "address": t.address,
+            "industry": t.industry or "MOBILE_RETAIL",
+            "industry_code": t.industry_code or "MOBILE_RETAIL",
+            "status": t.status.value if hasattr(t.status, 'value') else str(t.status),
+            "current_plan": plan_code,
+            "storage_used_mb": float(t.storage_used_mb or 0.0),
+            "storage_limit_gb": storage_limit,
+            "monthly_transactions_count": int(t.monthly_transactions_count or 0),
+            "monthly_transactions_limit": tx_limit,
+            "users_count": int(t.users_count or 1),
+            "country": t.country or "Sri Lanka",
+            "currency": t.currency or "LKR",
+            "timezone": t.timezone or "Asia/Colombo",
+            "shops_count": len(t.shops) if t.shops else 0,
+            "licenses_count": len(t.licenses) if t.licenses else 0,
+            "created_at": t.created_at.isoformat() if t.created_at else None
+        })
+    return results
 
 @router.post("/tenants")
 def create_tenant(
@@ -435,10 +518,61 @@ def get_tenant_details(tenant_id: int, db: Session = Depends(get_db), admin: Adm
         ]
     }
 
+@router.patch("/tenants/{tenant_id}")
+def update_tenant(
+    tenant_id: int,
+    req: TenantUpdateRequest,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN]))
+):
+    t = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    if req.company_name is not None:
+        t.company_name = req.company_name.strip()
+    if req.contact_name is not None:
+        t.contact_name = req.contact_name.strip()
+    if req.phone is not None:
+        t.phone = req.phone.strip()
+    if req.email is not None:
+        t.email = req.email.strip() if req.email else None
+    if req.address is not None:
+        t.address = req.address.strip() if req.address else None
+    if req.country is not None:
+        t.country = req.country.strip()
+    if req.currency is not None:
+        t.currency = req.currency.strip()
+    if req.timezone is not None:
+        t.timezone = req.timezone.strip()
+    if req.status is not None:
+        try:
+            t.status = TenantStatus(req.status.upper())
+        except ValueError:
+            pass
+
+    log_admin_action(db, admin.id, "UPDATE_TENANT", "TENANT", t.id, {"company_name": t.company_name, "status": str(t.status)})
+    db.commit()
+    db.refresh(t)
+    return {"success": True, "message": "Organization updated successfully", "tenant": {
+        "id": t.id,
+        "tenant_code": t.tenant_code,
+        "company_name": t.company_name,
+        "contact_name": t.contact_name,
+        "phone": t.phone,
+        "email": t.email,
+        "address": t.address,
+        "status": t.status.value if hasattr(t.status, 'value') else str(t.status)
+    }}
+
 # 3. Shop Management
 @router.get("/shops")
 def list_shops(db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
-    shops = db.query(Shop).all()
+    shops = db.query(Shop).options(
+        joinedload(Shop.tenant),
+        joinedload(Shop.machines),
+        joinedload(Shop.licenses).joinedload(License.package)
+    ).all()
     return [
         {
             "id": s.id,
@@ -447,12 +581,12 @@ def list_shops(db: Session = Depends(get_db), admin: AdminUser = Depends(get_cur
             "shop_name": s.shop_name,
             "city": s.city,
             "phone": s.phone,
-            "tenant_name": s.tenant.company_name,
-            "tenant_code": s.tenant.tenant_code,
+            "tenant_name": s.tenant.company_name if s.tenant else "Unknown Tenant",
+            "tenant_code": s.tenant.tenant_code if s.tenant else "N/A",
             "active_machines_count": len([m for m in s.machines if m.status == MachineStatus.ACTIVE]),
             "active_license_key": s.licenses[0].license_key if s.licenses else None,
-            "package_code": s.licenses[0].package.code if s.licenses else None,
-            "created_at": s.created_at.isoformat()
+            "package_code": s.licenses[0].package.code if (s.licenses and s.licenses[0].package) else None,
+            "created_at": s.created_at.isoformat() if s.created_at else None
         } for s in shops
     ]
 
@@ -540,18 +674,23 @@ def update_package(
 # 5. Licenses Management & Advanced Lifecycle Actions
 @router.get("/licenses")
 def list_licenses(db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
-    licenses = db.query(License).all()
+    licenses = db.query(License).options(
+        joinedload(License.tenant),
+        joinedload(License.shop),
+        joinedload(License.package),
+        joinedload(License.machines)
+    ).all()
     return [
         {
             "id": lic.id,
             "license_key": lic.license_key,
-            "tenant_name": lic.tenant.company_name,
-            "tenant_code": lic.tenant.tenant_code,
-            "shop_name": lic.shop.shop_name,
-            "shop_code": lic.shop.shop_code,
-            "package_code": lic.package.code,
+            "tenant_name": lic.tenant.company_name if lic.tenant else "Unknown Tenant",
+            "tenant_code": lic.tenant.tenant_code if lic.tenant else "N/A",
+            "shop_name": lic.shop.shop_name if lic.shop else "Main Branch",
+            "shop_code": lic.shop.shop_code if lic.shop else "MAIN",
+            "package_code": lic.package.code if lic.package else "CUSTOM",
             "status": lic.status.value,
-            "issued_at": lic.issued_at.isoformat(),
+            "issued_at": lic.issued_at.isoformat() if lic.issued_at else None,
             "expires_at": lic.expires_at.isoformat() if lic.expires_at else None,
             "max_machines": lic.max_machines,
             "active_machines_count": len([m for m in lic.machines if m.status == MachineStatus.ACTIVE]),
@@ -857,9 +996,134 @@ def revoke_license(
     return {"success": True, "message": "License permanently revoked."}
 
 # 6. Machine Management & Telemetry
+
+class TerminalHeartbeatRequest(BaseModel):
+    license_key: str
+    machine_fingerprint: str
+    machine_name: Optional[str] = None
+    platform: Optional[str] = "Windows"
+    app_version: Optional[str] = None
+    ip_address: Optional[str] = None
+    uptime_seconds: Optional[int] = 0
+    metrics: Optional[Dict[str, Any]] = None  # cpu_percent, memory_percent, disk_free_gb, database_size_mb, pending_outbox_events, last_sale_at
+
+
+class MachineCommandRequest(BaseModel):
+    command: str  # LOCK, UNLOCK, FORCE_SYNC, REFRESH_LICENSE, RESET_BINDING
+    parameters: Optional[Dict[str, Any]] = None
+
+
+@router.post("/telemetry/heartbeat")
+@router.post("/machines/heartbeat")
+def terminal_heartbeat(
+    req: TerminalHeartbeatRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Ingests live telemetry from active POS terminals, updates health state,
+    and returns pending remote commands and live license state.
+    """
+    lic = db.query(License).filter(License.license_key == req.license_key.strip().upper()).first()
+    if not lic:
+        raise HTTPException(status_code=404, detail="License key not found")
+    
+    # Locate or attach machine
+    machine = db.query(Machine).filter(
+        Machine.license_id == lic.id,
+        Machine.machine_fingerprint == req.machine_fingerprint.strip()
+    ).first()
+
+    now = datetime.now(timezone.utc)
+    if not machine:
+        machine = Machine(
+            tenant_id=lic.tenant_id,
+            shop_id=lic.shop_id,
+            license_id=lic.id,
+            machine_fingerprint=req.machine_fingerprint.strip(),
+            machine_name=req.machine_name or f"POS-{req.machine_fingerprint[:6]}",
+            platform=req.platform or "Windows",
+            app_version=req.app_version,
+            ip_address=req.ip_address or "127.0.0.1",
+            status=MachineStatus.ACTIVE,
+            first_activated_at=now,
+            last_seen_at=now,
+            telemetry_json=req.metrics or {},
+            uptime_seconds=req.uptime_seconds or 0,
+            pending_commands=[]
+        )
+        db.add(machine)
+    else:
+        machine.last_seen_at = now
+        if req.machine_name:
+            machine.machine_name = req.machine_name
+        if req.app_version:
+            machine.app_version = req.app_version
+        if req.ip_address:
+            machine.ip_address = req.ip_address
+        if req.metrics:
+            machine.telemetry_json = req.metrics
+        if req.uptime_seconds is not None:
+            machine.uptime_seconds = req.uptime_seconds
+
+    # Fetch and clear pending commands
+    pending_cmds = list(machine.pending_commands or [])
+    machine.pending_commands = []
+    
+    # Also check if license is active
+    is_license_active = (lic.status == LicenseStatus.ACTIVE)
+    if lic.expires_at and lic.expires_at < now:
+        is_license_active = False
+
+    db.commit()
+
+    return {
+        "success": True,
+        "status": machine.status.value,
+        "is_license_active": is_license_active,
+        "tenant_code": lic.tenant.tenant_code if lic.tenant else None,
+        "commands": pending_cmds,
+        "server_time": now.isoformat()
+    }
+
+
+@router.post("/machines/{machine_id}/command")
+def dispatch_machine_command(
+    machine_id: int,
+    req: MachineCommandRequest,
+    db: Session = Depends(get_db),
+    admin: AdminUser = Depends(require_role([AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TECHNICAL]))
+):
+    machine = db.query(Machine).filter(Machine.id == machine_id).first()
+    if not machine:
+        raise HTTPException(status_code=404, detail="Machine not found")
+    
+    cmd_entry = {
+        "command": req.command.strip().upper(),
+        "dispatched_by": admin.username,
+        "dispatched_at": datetime.now(timezone.utc).isoformat(),
+        "parameters": req.parameters or {}
+    }
+    cmds = list(machine.pending_commands or [])
+    cmds.append(cmd_entry)
+    machine.pending_commands = cmds
+
+    if req.command.strip().upper() == "LOCK":
+        machine.status = MachineStatus.LOCKED
+    elif req.command.strip().upper() == "UNLOCK":
+        machine.status = MachineStatus.ACTIVE
+
+    log_admin_action(db, admin.id, f"COMMAND_{req.command}", "MACHINE", machine.id, cmd_entry)
+    db.commit()
+
+    return {"success": True, "message": f"Command '{req.command}' queued for terminal.", "queued_commands_count": len(cmds)}
+
+
 @router.get("/machines")
 def list_machines(db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
-    machines = db.query(Machine).order_by(desc(Machine.last_seen_at)).all()
+    machines = db.query(Machine).options(
+        joinedload(Machine.shop).joinedload(Shop.tenant),
+        joinedload(Machine.license)
+    ).order_by(desc(Machine.last_seen_at)).all()
     return [
         {
             "id": m.id,
@@ -867,33 +1131,42 @@ def list_machines(db: Session = Depends(get_db), admin: AdminUser = Depends(get_
             "machine_name": m.machine_name,
             "platform": m.platform,
             "app_version": m.app_version,
+            "ip_address": m.ip_address,
             "status": m.status.value,
-            "shop_name": m.shop.shop_name,
-            "tenant_name": m.shop.tenant.company_name,
-            "license_key": m.license.license_key,
-            "first_activated_at": m.first_activated_at.isoformat(),
-            "last_seen_at": m.last_seen_at.isoformat()
+            "shop_name": m.shop.shop_name if m.shop else "Main Branch",
+            "tenant_name": m.shop.tenant.company_name if (m.shop and m.shop.tenant) else "Direct Tenant",
+            "tenant_code": m.shop.tenant.tenant_code if (m.shop and m.shop.tenant) else "N/A",
+            "license_key": m.license.license_key if m.license else "—",
+            "telemetry": m.telemetry_json or {},
+            "uptime_seconds": m.uptime_seconds or 0,
+            "pending_commands_count": len(m.pending_commands or []),
+            "first_activated_at": m.first_activated_at.isoformat() if m.first_activated_at else None,
+            "last_seen_at": m.last_seen_at.isoformat() if m.last_seen_at else None
         } for m in machines
     ]
 
 # 7. Payments Ledger & Manual Payment Entry
 @router.get("/payments")
 def list_payments(db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
-    payments = db.query(Payment).order_by(desc(Payment.created_at)).all()
+    payments = db.query(Payment).options(
+        joinedload(Payment.tenant),
+        joinedload(Payment.shop),
+        joinedload(Payment.license)
+    ).order_by(desc(Payment.created_at)).all()
     return [
         {
             "id": p.id,
-            "tenant_name": p.tenant.company_name,
+            "tenant_name": p.tenant.company_name if p.tenant else "Direct Client",
             "shop_name": p.shop.shop_name if p.shop else "—",
             "license_key": p.license.license_key if p.license else "—",
             "amount_lkr": p.amount_lkr,
             "currency": p.currency,
-            "payment_type": p.payment_type.value,
+            "payment_type": p.payment_type.value if hasattr(p.payment_type, 'value') else str(p.payment_type),
             "payment_method": p.payment_method,
             "reference_no": p.reference_no,
-            "payment_date": p.payment_date.isoformat(),
+            "payment_date": p.payment_date.isoformat() if p.payment_date else None,
             "notes": p.notes,
-            "created_at": p.created_at.isoformat()
+            "created_at": p.created_at.isoformat() if p.created_at else None
         } for p in payments
     ]
 
@@ -1380,10 +1653,13 @@ def get_all_organizations(
     db: Session = Depends(get_db),
     admin: AdminUser = Depends(get_current_admin)
 ):
-    tenants = db.query(Tenant).order_by(desc(Tenant.created_at)).all()
+    tenants = db.query(Tenant).options(
+        joinedload(Tenant.licenses).joinedload(License.package),
+        joinedload(Tenant.shops)
+    ).order_by(desc(Tenant.created_at)).all()
     results = []
     for t in tenants:
-        active_lic = db.query(License).filter(License.tenant_id == t.id, License.status == LicenseStatus.ACTIVE).first()
+        active_lic = next((l for l in t.licenses if l.status == LicenseStatus.ACTIVE), t.licenses[0] if t.licenses else None)
         results.append({
             "id": t.id,
             "tenant_code": t.tenant_code,
@@ -1396,12 +1672,12 @@ def get_all_organizations(
             "country": t.country,
             "currency": t.currency,
             "timezone": t.timezone,
-            "status": t.status.value,
+            "status": t.status.value if hasattr(t.status, 'value') else str(t.status),
             "storage_used_mb": t.storage_used_mb,
             "monthly_transactions_count": t.monthly_transactions_count,
             "users_count": t.users_count,
-            "shops_count": len(t.shops),
-            "licenses_count": len(t.licenses),
+            "shops_count": len(t.shops) if t.shops else 0,
+            "licenses_count": len(t.licenses) if t.licenses else 0,
             "current_plan": active_lic.package.name if (active_lic and active_lic.package) else "Community Trial",
             "created_at": format_dt_utc(t.created_at)
         })
@@ -1793,24 +2069,36 @@ def get_analytics_overview(
     db: Session = Depends(get_db),
     admin: AdminUser = Depends(get_current_admin)
 ):
-    total_rev = db.query(func.sum(Payment.amount_lkr)).scalar() or 0
-    total_tenants = db.query(Tenant).count()
-    active_tenants = db.query(Tenant).filter(Tenant.status == TenantStatus.ACTIVE).count()
+    agg_row = db.execute(text("""
+        SELECT
+            (SELECT COALESCE(SUM(amount_lkr), 0.0) FROM payments) AS total_rev,
+            (SELECT COUNT(*) FROM tenants WHERE is_deleted = false) AS total_tenants,
+            (SELECT COUNT(*) FROM tenants WHERE status = 'ACTIVE' AND is_deleted = false) AS active_tenants,
+            (SELECT COUNT(*) FROM tenants WHERE status = 'TRIAL' AND is_deleted = false) AS trial_tenants,
+            (SELECT COUNT(*) FROM machines WHERE status = 'ACTIVE') AS total_devices
+    """)).mappings().first()
+
+    total_rev = float(agg_row["total_rev"] or 0.0)
+    total_tenants = int(agg_row["total_tenants"] or 0)
+    active_tenants = int(agg_row["active_tenants"] or 0)
+    trial_tenants = int(agg_row["trial_tenants"] or 0)
+    total_devices = int(agg_row["total_devices"] or 0)
     
     # Calculate MRR estimate (annual rev / 12)
     mrr = round((total_rev / 12), 2)
     arr = total_rev
 
-    # Plan distribution
-    pkg_distribution = []
-    for pkg in db.query(Package).all():
-        lic_count = db.query(License).filter(License.package_id == pkg.id).count()
-        pkg_distribution.append({
+    # Grouped package distribution query in 1 roundtrip
+    lic_counts = dict(db.query(License.package_id, func.count(License.id)).group_by(License.package_id).all())
+    packages = db.query(Package).all()
+    pkg_distribution = [
+        {
             "code": pkg.code,
             "name": pkg.name,
-            "licenses_count": lic_count,
+            "licenses_count": lic_counts.get(pkg.id, 0),
             "price_lkr": pkg.price_lkr
-        })
+        } for pkg in packages
+    ]
 
     return {
         "total_revenue_lkr": total_rev,
@@ -1820,8 +2108,8 @@ def get_analytics_overview(
         "churn_rate_pct": 1.2,
         "total_organizations": total_tenants,
         "active_organizations": active_tenants,
-        "trial_organizations": db.query(Tenant).filter(Tenant.status == TenantStatus.TRIAL).count(),
-        "total_devices": db.query(Machine).count(),
+        "trial_organizations": trial_tenants,
+        "total_devices": total_devices,
         "plan_distribution": pkg_distribution,
         "monthly_transactions_volume": 128500,
         "total_storage_used_gb": 4.8

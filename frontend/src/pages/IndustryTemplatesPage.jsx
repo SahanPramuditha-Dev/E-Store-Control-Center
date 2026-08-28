@@ -4,9 +4,9 @@ import {
   Sliders, Shield, Sparkles, Smartphone, ShoppingBasket, Shirt, 
   Tv, Sparkle, Tag, Info, Check, Save, ArrowRight
 } from 'lucide-react';
+import api from '../api';
 import { useToast } from '../components/ToastContext';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+import { PageHeader, Button, Badge, LoadingState } from '../components/UI';
 
 const INDUSTRY_ICONS = {
   MOBILE_RETAIL: Smartphone,
@@ -18,7 +18,7 @@ const INDUSTRY_ICONS = {
 };
 
 export default function IndustryTemplatesPage() {
-  const { addToast } = useToast();
+  const { showToast } = useToast();
   const [industries, setIndustries] = useState([]);
   const [capabilities, setCapabilities] = useState([]);
   const [selectedIndustry, setSelectedIndustry] = useState('MOBILE_RETAIL');
@@ -29,25 +29,20 @@ export default function IndustryTemplatesPage() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('estore_admin_token');
-      const headers = { Authorization: `Bearer ${token}` };
-
       const [indRes, capRes] = await Promise.all([
-        fetch(`${API_BASE}/admin/industries`, { headers }),
-        fetch(`${API_BASE}/admin/capabilities/registry`, { headers })
+        api.get('/admin/industries'),
+        api.get('/admin/capabilities/registry')
       ]);
 
-      if (indRes.ok && capRes.ok) {
-        const indData = await indRes.json();
-        const capData = await capRes.json();
-        setIndustries(indData);
-        setCapabilities(capData);
-        if (indData.length > 0) {
-          fetchPreview(selectedIndustry || indData[0].code);
-        }
+      const indData = indRes.data || [];
+      const capData = capRes.data || [];
+      setIndustries(indData);
+      setCapabilities(capData);
+      if (indData.length > 0) {
+        fetchPreview(selectedIndustry || indData[0].code);
       }
     } catch (e) {
-      addToast('Failed to load industry configurations', 'error');
+      if (showToast) showToast('Failed to load industry configurations', 'error');
     } finally {
       setLoading(false);
     }
@@ -55,21 +50,12 @@ export default function IndustryTemplatesPage() {
 
   const fetchPreview = async (indCode) => {
     try {
-      const token = localStorage.getItem('estore_admin_token');
-      const res = await fetch(`${API_BASE}/admin/capabilities/resolve-preview`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ industry_code: indCode })
+      const res = await api.post('/admin/capabilities/resolve-preview', {
+        industry_code: indCode
       });
-      if (res.ok) {
-        const data = await res.json();
-        setPreviewBreakdown(data);
-      }
+      setPreviewBreakdown(res.data);
     } catch (e) {
-      console.error(e);
+      console.error('Failed to resolve capability preview', e);
     }
   };
 
@@ -85,25 +71,28 @@ export default function IndustryTemplatesPage() {
   const currentTemplate = industries.find(i => i.code === selectedIndustry);
 
   return (
-    <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Layers className="text-indigo-600 dark:text-indigo-400" />
-            Industry Templates & Capabilities
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Centrally govern industry templates, capability matrices, and feature flags across all E-Store ERP tenants.
-          </p>
-        </div>
-        <button
-          onClick={fetchInitialData}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition"
-        >
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
-        </button>
-      </div>
+    <div className="space-y-7 max-w-7xl mx-auto animate-in fade-in duration-300">
+      {/* Centralized Page Header */}
+      <PageHeader
+        eyebrow="Vertical Archetypes & Governance"
+        title="Industry Templates & Capability Matrices"
+        subtitle="Centrally govern vertical domain capabilities, default feature switches, and capability inheritance across all POS client tenancies"
+        badges={[
+          { label: `${industries.length} Industry Archetypes`, tone: 'indigo' },
+          { label: `${capabilities.length} Capability Registry`, tone: 'purple' },
+        ]}
+        actions={
+          <Button
+            variant="purple-gradient"
+            size="sm"
+            onClick={fetchInitialData}
+            icon={RefreshCw}
+            loading={loading}
+          >
+            Refresh Templates
+          </Button>
+        }
+      />
 
       {/* Industry Selector Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

@@ -12,10 +12,14 @@ import api from '../api';
 import { useTheme } from '../components/ThemeContext';
 import { formatDate } from '../utils/dateUtils';
 import OnboardingModal from '../components/OnboardingModal';
+import { StatCard, Button, Badge, LoadingState, ErrorState } from '../components/UI';
+
+import { DashboardSkeleton } from '../components/Skeleton';
 
 export default function DashboardOverview() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [timelineRange, setTimelineRange] = useState('30D');
   const [chartMetric, setChartMetric] = useState('revenue'); // 'revenue' | 'devices'
@@ -25,11 +29,15 @@ export default function DashboardOverview() {
 
   const fetchStats = async () => {
     try {
-      setLoading(true);
-      const res = await api.get('/admin/dashboard/stats');
-      setStats(res.data);
+      if (!stats) setLoading(true);
+      setError(null);
+      const data = await api.getCached('/admin/dashboard/stats');
+      setStats(data);
     } catch (err) {
       console.error('Failed to load stats', err);
+      if (!stats) {
+        setError(err.response?.data?.detail || 'Could not connect to backend server. Please verify the backend is running on port 8080.');
+      }
     } finally {
       setLoading(false);
     }
@@ -66,18 +74,12 @@ export default function DashboardOverview() {
   }, []);
 
   if (loading && !stats) {
+    return <DashboardSkeleton />;
+  }
+
+  if (error && !stats) {
     return (
-      <div className="p-16 flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="relative">
-          <div className="w-12 h-12 rounded-2xl bg-teal-500/20 animate-ping absolute inset-0" />
-          <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
-            <RefreshCw className="w-6 h-6 animate-spin" />
-          </div>
-        </div>
-        <p className={`text-xs font-semibold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-          Initializing Platform Telemetry & Cryptographic Engine...
-        </p>
-      </div>
+      <ErrorState error={error} onRetry={fetchStats} />
     );
   }
 
@@ -96,9 +98,7 @@ export default function DashboardOverview() {
       sub: `${stats?.total_tenants || 0} Organizations Enrolled`,
       badge: formatGrowth(stats?.growth_metrics?.tenants_mom_pct),
       icon: Store,
-      color: 'text-teal-400',
-      bg: isDark ? 'bg-teal-500/10 border-teal-500/25' : 'bg-teal-50 border-teal-200',
-      glow: 'hover:border-teal-500/50 hover:shadow-teal-500/10',
+      tone: 'indigo',
       link: '/shops',
     },
     {
@@ -107,9 +107,7 @@ export default function DashboardOverview() {
       sub: `${stats?.total_licenses || 0} Total Tokens Issued`,
       badge: stats?.growth_metrics?.licenses_mom_pct ? formatGrowth(stats?.growth_metrics?.licenses_mom_pct) : 'Ed25519 Signed',
       icon: Key,
-      color: 'text-sky-400',
-      bg: isDark ? 'bg-sky-500/10 border-sky-500/25' : 'bg-sky-50 border-sky-200',
-      glow: 'hover:border-sky-500/50 hover:shadow-sky-500/10',
+      tone: 'purple',
       link: '/licenses',
     },
     {
@@ -118,9 +116,7 @@ export default function DashboardOverview() {
       sub: 'Terminals Hardware-Bound',
       badge: formatGrowth(stats?.growth_metrics?.devices_mom_pct),
       icon: Laptop,
-      color: 'text-indigo-400',
-      bg: isDark ? 'bg-indigo-500/10 border-indigo-500/25' : 'bg-indigo-50 border-indigo-200',
-      glow: 'hover:border-indigo-500/50 hover:shadow-indigo-500/10',
+      tone: 'sky',
       link: '/machines',
     },
     {
@@ -129,9 +125,7 @@ export default function DashboardOverview() {
       sub: 'Lifetime Revenue Invoiced',
       badge: formatGrowth(stats?.growth_metrics?.revenue_mom_pct),
       icon: CreditCard,
-      color: 'text-emerald-400',
-      bg: isDark ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-emerald-50 border-emerald-200',
-      glow: 'hover:border-emerald-500/50 hover:shadow-emerald-500/10',
+      tone: 'emerald',
       link: '/payments',
     },
   ];
@@ -192,23 +186,23 @@ export default function DashboardOverview() {
       {/* Executive Command Header */}
       <div className={`p-6 sm:p-8 rounded-3xl border transition-all duration-300 ${
         isDark 
-          ? 'bg-gradient-to-r from-slate-900 via-slate-900/90 to-teal-950/40 border-slate-800/90 shadow-xl shadow-black/20' 
-          : 'bg-gradient-to-r from-white via-white to-teal-50/70 border-slate-200/90 shadow-sm'
+          ? 'bg-gradient-to-r from-slate-900 via-slate-900/90 to-indigo-950/40 border-slate-800/90 shadow-xl shadow-black/20' 
+          : 'bg-gradient-to-r from-white via-white to-indigo-50/70 border-slate-200/90 shadow-sm'
       }`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border ${
-                isDark ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-teal-50 border-teal-200 text-teal-700'
+                isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
               }`}>
-                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                 <span>Executive Command Center</span>
               </span>
               
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${
                 isDark ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
               }`}>
-                <Cpu className="w-3 h-3 text-teal-500" />
+                <Cpu className="w-3 h-3 text-indigo-400" />
                 <span>{stats?.system_health?.crypto_engine || 'Ed25519 Active'}</span>
               </span>
 
@@ -229,25 +223,23 @@ export default function DashboardOverview() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <button
+            <Button
+              variant="secondary"
               onClick={fetchStats}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold border transition-all duration-200 active:scale-95 ${
-                isDark 
-                  ? 'bg-slate-950/80 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
-                  : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:border-slate-300 shadow-xs'
-              }`}
+              icon={RefreshCw}
+              loading={loading}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              <span>Sync Telemetry</span>
-            </button>
+              Sync Telemetry
+            </Button>
 
-            <button
+            <Button
+              variant="purple-gradient"
               onClick={() => setIsOnboardingOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-teal-500 to-teal-400 hover:from-teal-400 hover:to-teal-300 text-slate-950 rounded-2xl text-xs font-extrabold transition-all duration-200 shadow-lg shadow-teal-500/25 active:scale-95 hover:-translate-y-0.5 cursor-pointer"
+              icon={Plus}
+              size="md"
             >
-              <Plus className="w-4 h-4" />
-              <span>Rapid Onboarding</span>
-            </button>
+              Rapid Onboarding
+            </Button>
           </div>
         </div>
       </div>
@@ -277,45 +269,18 @@ export default function DashboardOverview() {
 
       {/* KPI Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        {statCards.map((card, idx) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={idx}
-              onClick={() => navigate(card.link)}
-              className={`p-5 sm:p-6 rounded-3xl border transition-all duration-300 cursor-pointer group hover:-translate-y-1 ${
-                isDark 
-                  ? `bg-slate-900/90 border-slate-800/90 shadow-lg shadow-black/20 ${card.glow}` 
-                  : `bg-white border-slate-200/90 shadow-sm hover:shadow-md ${card.glow}`
-              }`}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  {card.title}
-                </span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border font-mono ${
-                  isDark ? 'bg-slate-950 border-slate-800 text-teal-400' : 'bg-slate-50 border-slate-200 text-teal-700'
-                }`}>
-                  {card.badge}
-                </span>
-              </div>
-
-              <div className="flex items-baseline justify-between gap-2">
-                <span className={`text-2xl sm:text-3xl font-extrabold tracking-tight font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {card.value}
-                </span>
-                <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center ${card.bg} ${card.color} group-hover:scale-110 transition duration-300 shadow-xs shrink-0`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-              </div>
-
-              <div className="mt-3 pt-3 border-t border-slate-800/40 flex items-center justify-between text-[11px]">
-                <span className={`truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{card.sub}</span>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-400 group-hover:translate-x-1 transition duration-200 shrink-0" />
-              </div>
-            </div>
-          );
-        })}
+        {statCards.map((card, idx) => (
+          <StatCard
+            key={idx}
+            title={card.title}
+            value={card.value}
+            sub={card.sub}
+            badge={card.badge}
+            icon={card.icon}
+            tone={card.tone}
+            onClick={() => navigate(card.link)}
+          />
+        ))}
       </div>
 
       {/* Operations & System Health Matrix */}
@@ -326,7 +291,7 @@ export default function DashboardOverview() {
         }`}>
           <div className="flex items-center justify-between">
             <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              <Sparkles className="w-4 h-4 text-teal-500" />
+              <Sparkles className="w-4 h-4 text-indigo-400" />
               Administrative Workflows
             </h2>
             <span className="text-[10px] text-slate-400 font-mono">1-Click</span>
@@ -337,16 +302,16 @@ export default function DashboardOverview() {
               onClick={() => setIsOnboardingOpen(true)}
               className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all duration-200 group hover:-translate-y-0.5 cursor-pointer ${
                 isDark 
-                  ? 'bg-slate-950 border-slate-800 hover:border-teal-500/50 hover:bg-slate-900' 
-                  : 'bg-slate-50/80 border-slate-200 hover:border-teal-500 hover:bg-white shadow-xs'
+                  ? 'bg-slate-950 border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900' 
+                  : 'bg-slate-50/80 border-slate-200 hover:border-indigo-500 hover:bg-white shadow-xs'
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-500 flex items-center justify-center font-bold">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">
                   <Plus className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className={`text-xs font-bold transition-colors ${isDark ? 'text-white group-hover:text-teal-400' : 'text-slate-900 group-hover:text-teal-700'}`}>
+                  <p className={`text-xs font-bold transition-colors ${isDark ? 'text-white group-hover:text-indigo-400' : 'text-slate-900 group-hover:text-indigo-700'}`}>
                     Rapid Client Onboard
                   </p>
                   <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -354,23 +319,23 @@ export default function DashboardOverview() {
                   </p>
                 </div>
               </div>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-teal-500 transform group-hover:translate-x-1 transition duration-200" />
+              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transform group-hover:translate-x-1 transition duration-200" />
             </button>
 
             <button
               onClick={() => navigate('/licenses')}
               className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all duration-200 group hover:-translate-y-0.5 cursor-pointer ${
                 isDark 
-                  ? 'bg-slate-950 border-slate-800 hover:border-sky-500/50 hover:bg-slate-900' 
-                  : 'bg-slate-50/80 border-slate-200 hover:border-sky-500 hover:bg-white shadow-xs'
+                  ? 'bg-slate-950 border-slate-800 hover:border-purple-500/50 hover:bg-slate-900' 
+                  : 'bg-slate-50/80 border-slate-200 hover:border-purple-500 hover:bg-white shadow-xs'
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center font-bold">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold">
                   <Key className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className={`text-xs font-bold transition-colors ${isDark ? 'text-white group-hover:text-sky-400' : 'text-slate-900 group-hover:text-sky-700'}`}>
+                  <p className={`text-xs font-bold transition-colors ${isDark ? 'text-white group-hover:text-purple-400' : 'text-slate-900 group-hover:text-purple-700'}`}>
                     Issue / Renew License
                   </p>
                   <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -378,7 +343,7 @@ export default function DashboardOverview() {
                   </p>
                 </div>
               </div>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-sky-500 transform group-hover:translate-x-1 transition duration-200" />
+              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-purple-400 transform group-hover:translate-x-1 transition duration-200" />
             </button>
 
             <button
@@ -390,7 +355,7 @@ export default function DashboardOverview() {
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
                   <CreditCard className="w-4 h-4" />
                 </div>
                 <div>
@@ -416,7 +381,7 @@ export default function DashboardOverview() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                <Shield className="w-4 h-4 text-teal-500" />
+                <Shield className="w-4 h-4 text-indigo-400" />
                 Cryptographic Telemetry
               </h2>
               <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -424,7 +389,7 @@ export default function DashboardOverview() {
               </p>
             </div>
             <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-xl border shadow-xs ${
-              isDark ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-teal-50 border-teal-200 text-teal-700'
+              isDark ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-indigo-50 border-indigo-200 text-indigo-700'
             }`}>
               Ed25519
             </span>
@@ -433,11 +398,11 @@ export default function DashboardOverview() {
           <div className="grid grid-cols-3 gap-2.5 pt-2">
             <div 
               onClick={() => navigate('/licenses')}
-              className={`p-3 rounded-2xl border text-center transition-all cursor-pointer hover:border-teal-500/40 ${
+              className={`p-3 rounded-2xl border text-center transition-all cursor-pointer hover:border-indigo-500/40 ${
                 isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50/90 border-slate-200 shadow-2xs'
               }`}
             >
-              <div className="flex items-center justify-center gap-1 text-teal-500 text-[11px] font-bold mb-1">
+              <div className="flex items-center justify-center gap-1 text-indigo-400 text-[11px] font-bold mb-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Active</span>
               </div>
@@ -487,12 +452,12 @@ export default function DashboardOverview() {
         }`}>
           <div className="flex items-center justify-between">
             <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              <Layers className="w-4 h-4 text-teal-500" />
+              <Layers className="w-4 h-4 text-indigo-400" />
               Industry Vertical Mix
             </h2>
             <button 
               onClick={() => navigate('/industry-templates')}
-              className="text-[10px] text-teal-400 hover:underline flex items-center gap-0.5 cursor-pointer font-semibold"
+              className="text-[10px] text-indigo-400 hover:underline flex items-center gap-0.5 cursor-pointer font-semibold"
             >
               <span>Catalog</span>
               <ArrowRight className="w-3 h-3" />
@@ -511,7 +476,7 @@ export default function DashboardOverview() {
                   <div key={ind.code} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
                       <span className="flex items-center gap-1.5 text-slate-300 font-medium truncate">
-                        <IconComp className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                        <IconComp className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                         <span className="truncate">{ind.label}</span>
                       </span>
                       <span className="font-mono text-[11px] text-slate-400 shrink-0">
@@ -520,7 +485,7 @@ export default function DashboardOverview() {
                     </div>
                     <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden">
                       <div 
-                        className="bg-teal-500 h-1.5 rounded-full transition-all duration-500"
+                        className="bg-indigo-500 h-1.5 rounded-full transition-all duration-500"
                         style={{ width: `${Math.max(ind.percentage, 5)}%` }}
                       />
                     </div>
@@ -539,11 +504,11 @@ export default function DashboardOverview() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-              <span className="text-[11px] font-bold text-teal-500 uppercase tracking-wider font-mono">Live Telemetry Analytics</span>
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+              <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider font-mono">Live Telemetry Analytics</span>
             </div>
             <h2 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              <TrendingUp className="w-4 h-4 text-teal-500" />
+              <TrendingUp className="w-4 h-4 text-indigo-400" />
               Platform Telemetry & Growth Trajectory
             </h2>
             <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -559,7 +524,7 @@ export default function DashboardOverview() {
                 onClick={() => setChartMetric('revenue')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                   chartMetric === 'revenue'
-                    ? 'bg-teal-500 text-slate-950 shadow-xs'
+                    ? 'bg-indigo-600 text-white shadow-xs'
                     : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -570,7 +535,7 @@ export default function DashboardOverview() {
                 onClick={() => setChartMetric('devices')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                   chartMetric === 'devices'
-                    ? 'bg-teal-500 text-slate-950 shadow-xs'
+                    ? 'bg-indigo-600 text-white shadow-xs'
                     : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -587,7 +552,7 @@ export default function DashboardOverview() {
                   onClick={() => { setTimelineRange(range); setHoveredPoint(null); }}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                     timelineRange === range
-                      ? 'bg-teal-500 text-slate-950 shadow-xs'
+                      ? 'bg-indigo-600 text-white shadow-xs'
                       : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -603,7 +568,7 @@ export default function DashboardOverview() {
                 isDark ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-700 hover:text-slate-900'
               }`}
             >
-              <FileCheck className="w-3.5 h-3.5 text-teal-500" />
+              <FileCheck className="w-3.5 h-3.5 text-indigo-400" />
               <span>Export CSV</span>
             </button>
           </div>
@@ -616,10 +581,10 @@ export default function DashboardOverview() {
           {/* Tooltip Overlay */}
           {hoveredPoint && (
             <div 
-              className="absolute top-4 left-6 z-10 p-2.5 rounded-xl bg-slate-900/95 border border-teal-500/40 text-xs shadow-xl animate-in fade-in duration-100"
+              className="absolute top-4 left-6 z-10 p-2.5 rounded-xl bg-slate-900/95 border border-indigo-500/40 text-xs shadow-xl animate-in fade-in duration-100"
             >
               <div className="text-slate-400 font-mono text-[10px]">{hoveredPoint.data.full_date}</div>
-              <div className="font-bold text-teal-300 font-mono text-sm mt-0.5">
+              <div className="font-bold text-indigo-300 font-mono text-sm mt-0.5">
                 {chartMetric === 'revenue' 
                   ? `Rs ${hoveredPoint.val.toLocaleString()}` 
                   : `${hoveredPoint.val} Connected Device(s)`}
@@ -630,8 +595,8 @@ export default function DashboardOverview() {
           <svg className="w-full h-40" viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio="none">
             <defs>
               <linearGradient id="dynamicRevenueGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.45" />
-                <stop offset="100%" stopColor="#14b8a6" stopOpacity="0.0" />
+                <stop offset="0%" stopColor="#6366f1" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
               </linearGradient>
             </defs>
 
@@ -647,7 +612,7 @@ export default function DashboardOverview() {
             <path
               d={linePath}
               fill="none"
-              stroke="#14b8a6"
+              stroke="#6366f1"
               strokeWidth="3"
             />
 
@@ -658,7 +623,7 @@ export default function DashboardOverview() {
                   cx={pt.x}
                   cy={pt.y}
                   r="5"
-                  className="fill-teal-400 stroke-slate-950 stroke-2 hover:r-7 transition-all cursor-pointer"
+                  className="fill-indigo-400 stroke-slate-950 stroke-2 hover:r-7 transition-all cursor-pointer"
                   onMouseEnter={() => setHoveredPoint(pt)}
                 />
               </g>
@@ -683,7 +648,7 @@ export default function DashboardOverview() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                <CreditCard className="w-4 h-4 text-emerald-500" />
+                <CreditCard className="w-4 h-4 text-emerald-400" />
                 Recent Payment Transactions
               </h2>
               <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -693,7 +658,7 @@ export default function DashboardOverview() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate('/payments')}
-                className="text-xs font-bold text-teal-500 hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <span>Full Ledger</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -711,7 +676,7 @@ export default function DashboardOverview() {
               </p>
               <button
                 onClick={() => navigate('/payments')}
-                className="px-4 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold transition cursor-pointer"
+                className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition cursor-pointer"
               >
                 Record Payment
               </button>
@@ -742,7 +707,7 @@ export default function DashboardOverview() {
                       <td className="px-4 py-3 font-semibold text-white truncate max-w-[140px]">
                         {pmt.tenant_name || 'Direct Client'}
                       </td>
-                      <td className="px-4 py-3 font-bold font-mono text-teal-400">
+                      <td className="px-4 py-3 font-bold font-mono text-indigo-400">
                         Rs {Number(pmt.amount_lkr).toLocaleString()}
                       </td>
                       <td className="px-4 py-3">
@@ -770,12 +735,12 @@ export default function DashboardOverview() {
         }`}>
           <div className="flex items-center justify-between">
             <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              <Activity className="w-4 h-4 text-teal-500" />
+              <Activity className="w-4 h-4 text-indigo-400" />
               Live Audit Stream
             </h2>
             <button
               onClick={() => navigate('/audit-logs')}
-              className="text-[11px] font-bold text-teal-500 hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-[11px] font-bold text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
             >
               <span>View Logs</span>
               <ArrowRight className="w-3 h-3" />
@@ -796,7 +761,7 @@ export default function DashboardOverview() {
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-teal-400 font-mono text-[11px] truncate">
+                    <span className="font-bold text-indigo-400 font-mono text-[11px] truncate">
                       {act.action}
                     </span>
                     <span className="text-[10px] text-slate-500 font-mono">
@@ -827,3 +792,4 @@ export default function DashboardOverview() {
     </div>
   );
 }
+

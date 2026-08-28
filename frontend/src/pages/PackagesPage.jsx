@@ -90,9 +90,9 @@ export default function PackagesPage() {
         };
       case 'BUSINESS':
         return {
-          bg: isDark ? 'from-teal-500/10 to-slate-900/90 border-teal-500/30' : 'from-teal-50/60 to-white border-teal-200',
-          badge: isDark ? 'bg-teal-500/10 text-teal-400 border-teal-500/30' : 'bg-teal-50 text-teal-700 border-teal-200',
-          accent: 'text-teal-500',
+          bg: isDark ? 'from-indigo-600/10 to-slate-900/90 border-indigo-500/30' : 'from-indigo-50/60 to-white border-indigo-200',
+          badge: isDark ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' : 'bg-indigo-50 text-indigo-700 border-indigo-200',
+          accent: 'text-indigo-400',
           tag: 'Mobile & Computer Repair (Primary)'
         };
       case 'BUSINESS_AI':
@@ -106,7 +106,7 @@ export default function PackagesPage() {
         return {
           bg: isDark ? 'from-slate-800/20 to-slate-900/90 border-slate-800' : 'from-slate-50 to-white border-slate-200',
           badge: isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200',
-          accent: 'text-teal-500',
+          accent: 'text-indigo-400',
           tag: 'Custom Plan'
         };
     }
@@ -128,7 +128,7 @@ export default function PackagesPage() {
 
       {loading ? (
         <div className="p-12 flex flex-col items-center justify-center">
-          <RefreshCw className="w-8 h-8 text-teal-500 animate-spin mb-2" />
+          <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin mb-2" />
           <p className="text-xs text-slate-400">Loading Commercial Packages...</p>
         </div>
       ) : (
@@ -163,17 +163,17 @@ export default function PackagesPage() {
 
                   <div className="mt-6">
                     <span className={`text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Rs {pkg.price_lkr.toLocaleString()}
+                      Rs {(pkg.price_lkr || 0).toLocaleString()}
                     </span>
                     <span className={`text-xs ml-2 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>/ annual license</span>
                   </div>
 
                   <div className={`mt-6 pt-5 border-t space-y-2.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                     <span className={`text-[10px] font-extrabold uppercase tracking-wider block mb-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Enabled Features ({pkg.features.length})
+                      Enabled Features ({(pkg.features || []).length})
                     </span>
                     <div className="space-y-2">
-                      {pkg.features.map((fCode) => (
+                      {(pkg.features || []).map((fCode) => (
                         <div key={fCode} className="flex items-center gap-2 text-xs">
                           <div className={`w-4 h-4 rounded-full flex items-center justify-center ${tier.badge}`}>
                             <Check className="w-2.5 h-2.5" />
@@ -200,7 +200,7 @@ export default function PackagesPage() {
           }`}>
             <div className={`flex items-center justify-between pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
               <div className="flex items-center gap-2">
-                <Layers className="w-5 h-5 text-teal-500" />
+                <Layers className="w-5 h-5 text-indigo-400" />
                 <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   Configure Package & Features
                 </h2>
@@ -219,7 +219,7 @@ export default function PackagesPage() {
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-indigo-600'
                   }`}
                 />
               </div>
@@ -232,7 +232,7 @@ export default function PackagesPage() {
                   value={editForm.price_lkr}
                   onChange={(e) => setEditForm({ ...editForm, price_lkr: e.target.value })}
                   className={`w-full px-3 py-2 rounded-xl border focus:outline-none font-mono ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
+                    isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-indigo-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-indigo-600'
                   }`}
                 />
               </div>
@@ -251,12 +251,12 @@ export default function PackagesPage() {
                         onClick={() => toggleFeature(f.code)}
                         className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition ${
                           active
-                            ? 'bg-teal-500/10 border-teal-500/40 text-teal-600 dark:text-teal-400 font-bold'
+                            ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-600 dark:text-indigo-400 font-bold'
                             : isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
                         }`}
                       >
                         <span className="truncate">{f.name || f.code}</span>
-                        {active && <Check className="w-3.5 h-3.5 text-teal-500 shrink-0" />}
+                        {active && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
                       </button>
                     );
                   })}
@@ -276,7 +276,7 @@ export default function PackagesPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-xl shadow-md shadow-teal-500/20"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl shadow-md shadow-indigo-500/25"
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Package'}
                 </button>

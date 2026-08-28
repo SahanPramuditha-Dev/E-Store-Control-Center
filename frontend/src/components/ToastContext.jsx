@@ -25,7 +25,7 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={{ showToast: addToast }}>
       {children}
       {/* Toast container */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-md w-full pointer-events-none px-4">
+      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-md w-full pointer-events-none px-4">
         {toasts.map((toast) => {
           const isSuccess = toast.type === 'success';
           const isError = toast.type === 'error';
@@ -35,14 +35,14 @@ export function ToastProvider({ children }) {
             <div
               key={toast.id}
               className={`
-                pointer-events-auto flex items-center justify-between gap-3 p-4 rounded-xl shadow-2xl border backdrop-blur-md transition-all duration-300 transform translate-y-0
-                ${isSuccess ? 'bg-slate-900/95 border-teal-500/40 text-teal-100 shadow-teal-500/10' : ''}
+                pointer-events-auto flex items-center justify-between gap-3 p-4 rounded-2xl shadow-2xl border backdrop-blur-xl transition-all duration-300 transform translate-y-0
+                ${isSuccess ? 'bg-slate-900/95 border-indigo-500/40 text-indigo-100 shadow-indigo-500/20' : ''}
                 ${isError ? 'bg-slate-900/95 border-rose-500/40 text-rose-100 shadow-rose-500/10' : ''}
                 ${isInfo ? 'bg-slate-900/95 border-sky-500/40 text-sky-100 shadow-sky-500/10' : ''}
               `}
             >
               <div className="flex items-center gap-3">
-                {isSuccess && <CheckCircle2 className="w-5 h-5 text-teal-400 shrink-0" />}
+                {isSuccess && <CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0" />}
                 {isError && <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />}
                 {isInfo && <Info className="w-5 h-5 text-sky-400 shrink-0" />}
                 <p className="text-sm font-medium leading-snug">{toast.message}</p>

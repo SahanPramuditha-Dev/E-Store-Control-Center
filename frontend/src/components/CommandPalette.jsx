@@ -54,11 +54,11 @@ export default function CommandPalette({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
         {/* Search Header */}
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-800 bg-slate-950/40">
-          <Search className="w-5 h-5 text-teal-400 shrink-0" />
+          <Search className="w-5 h-5 text-indigo-400 shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -67,7 +67,7 @@ export default function CommandPalette({ isOpen, onClose }) {
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 bg-transparent text-white placeholder-slate-500 text-sm focus:outline-none"
           />
-          {loading && <Loader2 className="w-4 h-4 text-teal-400 animate-spin shrink-0" />}
+          {loading && <Loader2 className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />}
           <button
             onClick={onClose}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition shrink-0"
@@ -94,7 +94,7 @@ export default function CommandPalette({ isOpen, onClose }) {
           {results.tenants?.length > 0 && (
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-3 mb-1.5 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-teal-400" />
+                <Building2 className="w-3.5 h-3.5 text-indigo-400" />
                 <span>Tenants ({results.tenants.length})</span>
               </div>
               <div className="space-y-1">
@@ -105,12 +105,12 @@ export default function CommandPalette({ isOpen, onClose }) {
                     className="w-full flex items-center justify-between p-2.5 rounded-xl text-left hover:bg-slate-800/80 transition group"
                   >
                     <div>
-                      <p className="text-sm font-semibold text-white group-hover:text-teal-300 transition">
+                      <p className="text-sm font-semibold text-white group-hover:text-indigo-300 transition">
                         {item.title}
                       </p>
                       <p className="text-xs text-slate-400">{item.subtitle}</p>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-teal-400 transform group-hover:translate-x-0.5 transition" />
+                    <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-indigo-400 transform group-hover:translate-x-0.5 transition" />
                   </button>
                 ))}
               </div>
@@ -159,12 +159,12 @@ export default function CommandPalette({ isOpen, onClose }) {
                     className="w-full flex items-center justify-between p-2.5 rounded-xl text-left hover:bg-slate-800/80 transition group font-mono"
                   >
                     <div>
-                      <p className="text-sm font-semibold text-teal-300 group-hover:text-teal-200 transition">
+                      <p className="text-sm font-semibold text-purple-300 group-hover:text-purple-200 transition">
                         {item.title}
                       </p>
                       <p className="text-xs text-slate-400 font-sans">{item.subtitle}</p>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-teal-400 transform group-hover:translate-x-0.5 transition" />
+                    <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-purple-400 transform group-hover:translate-x-0.5 transition" />
                   </button>
                 ))}
               </div>
@@ -205,9 +205,10 @@ export default function CommandPalette({ isOpen, onClose }) {
             <span>Navigation:</span>
             <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">ESC</kbd> to close
           </div>
-          <span className="text-[11px] text-teal-400">E-Store Control Center Global Search</span>
+          <span className="text-[11px] text-indigo-400 font-medium">E-Store Control Center Global Search</span>
         </div>
       </div>
     </div>
   );
 }
+

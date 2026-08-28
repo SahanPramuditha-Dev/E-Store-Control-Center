@@ -7,6 +7,7 @@ import {
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { Select, Button, Badge, PageHeader, Modal, EmptyState } from '../components/UI';
 
 export default function SupportPage() {
   const { showToast } = useToast();
@@ -43,7 +44,6 @@ export default function SupportPage() {
       setLoading(false);
     }
   };
-
 
   useEffect(() => {
     fetchData();
@@ -87,7 +87,6 @@ export default function SupportPage() {
     }
   };
 
-
   const handleUpdateStatus = async (ticketId, newStatus) => {
     try {
       await api.patch(`/admin/support/tickets/${ticketId}`, {
@@ -111,37 +110,38 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Customer Support & Impersonation Hub
-          </h1>
-          <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Manage client inquiry tickets, SLA resolution statuses, and launch secure audited support access
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchData}
-            className={`p-2.5 rounded-2xl border transition shadow-xs active:scale-95 ${
-              isDark 
-                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
-                : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
-            }`}
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-2xl text-xs transition shadow-md shadow-teal-500/20 active:scale-95 hover:-translate-y-0.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Ticket</span>
-          </button>
-        </div>
-      </div>
+    <div className="space-y-7 max-w-7xl mx-auto animate-in fade-in duration-300">
+      {/* Centralized Page Header */}
+      <PageHeader
+        eyebrow="Customer Engineering & Incident Support"
+        title="Customer Support & Impersonation Hub"
+        subtitle="Manage client inquiry tickets, SLA resolution statuses, and launch secure audited support access"
+        badges={[
+          { label: `${tickets.length} Total Tickets`, tone: 'indigo' },
+          { label: `${tickets.filter(t => t.status === 'OPEN').length} Open Inquiries`, tone: 'amber' },
+        ]}
+        actions={
+          <div className="flex items-center gap-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={fetchData}
+              icon={RefreshCw}
+              loading={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="purple-gradient"
+              size="sm"
+              onClick={() => setShowModal(true)}
+              icon={Plus}
+            >
+              Create Ticket
+            </Button>
+          </div>
+        }
+      />
 
       {/* Tickets List Table */}
       <div className={`rounded-3xl border overflow-hidden shadow-sm ${
@@ -167,20 +167,34 @@ export default function SupportPage() {
               {loading && tickets.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-slate-500">
-                    <Loader2 className="w-6 h-6 text-teal-500 animate-spin mx-auto mb-2" />
+                    <Loader2 className="w-6 h-6 text-indigo-400 animate-spin mx-auto mb-2" />
                     Loading support tickets...
                   </td>
                 </tr>
               ) : tickets.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-400">
-                    No active support tickets logged.
+                  <td colSpan={6} className="py-8">
+                    <EmptyState
+                      icon={LifeBuoy}
+                      title="No Support Tickets Logged"
+                      description="No active customer support tickets or SLA issues are currently outstanding."
+                      action={
+                        <Button
+                          variant="purple-gradient"
+                          size="sm"
+                          onClick={() => setShowModal(true)}
+                          icon={Plus}
+                        >
+                          Log New Ticket
+                        </Button>
+                      }
+                    />
                   </td>
                 </tr>
               ) : (
                 tickets.map((t) => (
                   <tr key={t.id} className={`transition ${isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50/80'}`}>
-                    <td className="px-5 py-4 font-mono font-bold text-teal-500">
+                    <td className="px-5 py-4 font-mono font-bold text-indigo-400">
                       {t.ticket_number}
                     </td>
 
@@ -204,19 +218,19 @@ export default function SupportPage() {
                       </span>
                     </td>
 
-                    <td className="px-5 py-4">
-                      <select
+                    <td className="px-5 py-3 w-40">
+                      <Select
                         value={t.status}
-                        onChange={(e) => handleUpdateStatus(t.id, e.target.value)}
-                        className={`rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none border ${
-                          isDark ? 'bg-slate-950 border-slate-800 text-teal-400' : 'bg-slate-50 border-slate-200 text-teal-700'
-                        }`}
-                      >
-                        <option value="OPEN">OPEN</option>
-                        <option value="IN_PROGRESS">IN_PROGRESS</option>
-                        <option value="RESOLVED">RESOLVED</option>
-                        <option value="CLOSED">CLOSED</option>
-                      </select>
+                        onChange={(val) => handleUpdateStatus(t.id, val)}
+                        options={[
+                          { value: 'OPEN', label: 'OPEN', badge: 'New' },
+                          { value: 'IN_PROGRESS', label: 'IN_PROGRESS', badge: 'Work' },
+                          { value: 'RESOLVED', label: 'RESOLVED', badge: 'Done' },
+                          { value: 'CLOSED', label: 'CLOSED', badge: 'End' },
+                        ]}
+                        size="sm"
+                        fullWidth
+                      />
                     </td>
 
                     <td className="px-5 py-4 text-right">
@@ -240,125 +254,106 @@ export default function SupportPage() {
       </div>
 
       {/* Modal: Create Ticket */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className={`w-full max-w-lg rounded-3xl p-6 sm:p-7 border shadow-2xl ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className={`flex items-center justify-between pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-              <div className="flex items-center gap-2">
-                <LifeBuoy className="w-5 h-5 text-teal-500" />
-                <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  Create Support Ticket
-                </h2>
-              </div>
-              <button onClick={() => setShowModal(false)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 transition">
-                <X className="w-5 h-5" />
-              </button>
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Create Support Ticket"
+        subtitle="Log an incident, inquiry, or hardware trouble ticket for a tenant"
+        icon={LifeBuoy}
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={handleCreateTicket} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-bold mb-1 text-slate-300">Client Organization *</label>
+            <Select
+              value={form.tenant_id}
+              onChange={(val) => setForm({ ...form, tenant_id: String(val) })}
+              options={organizations.map(o => ({
+                value: String(o.id),
+                label: `${o.company_name} (${o.tenant_code})`,
+              }))}
+              placeholder="Select client organization..."
+              size="md"
+              fullWidth
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold mb-1 text-slate-300">Subject / Issue Title *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Printer connection timeout on POS 2"
+              value={form.subject}
+              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              className="w-full px-3.5 py-2.5 rounded-xl border focus:outline-none bg-slate-950 border-slate-800 text-white focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold mb-1 text-slate-300">Priority Level</label>
+            <Select
+              value={form.priority}
+              onChange={(val) => setForm({ ...form, priority: val })}
+              options={[
+                { value: 'LOW', label: 'LOW', badge: 'Normal' },
+                { value: 'MEDIUM', label: 'MEDIUM', badge: 'Standard' },
+                { value: 'HIGH', label: 'HIGH', badge: 'High' },
+                { value: 'URGENT', label: 'URGENT', badge: 'Critical' },
+              ]}
+              size="md"
+              fullWidth
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block font-bold text-slate-300">Issue Details *</label>
+              <span className="text-[10px] text-indigo-400 font-semibold">Canned Templates:</span>
             </div>
 
-            <form onSubmit={handleCreateTicket} className="space-y-4 mt-4 text-xs">
-              <div>
-                <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Client Organization *</label>
-                <select
-                  value={form.tenant_id}
-                  onChange={(e) => setForm({ ...form, tenant_id: e.target.value })}
-                  className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
-                  }`}
-                  required
-                >
-                  {organizations.map(o => (
-                    <option key={o.id} value={o.id}>{o.company_name} ({o.tenant_code})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Subject / Issue Title *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Printer connection timeout on POS 2"
-                  value={form.subject}
-                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                  className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Priority Level</label>
-                <select
-                  value={form.priority}
-                  onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                  className={`w-full px-3 py-2 rounded-xl border focus:outline-none ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
-                  }`}
-                >
-                  <option value="LOW">LOW</option>
-                  <option value="MEDIUM">MEDIUM</option>
-                  <option value="HIGH">HIGH</option>
-                  <option value="URGENT">URGENT</option>
-                </select>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className={`block font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Issue Details *</label>
-                  <span className="text-[10px] text-teal-400 font-semibold">Canned Templates:</span>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {cannedResponses.map((cr, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleApplyCanned(cr.text)}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-medium border transition ${
-                        isDark ? 'bg-slate-950 border-slate-800 text-teal-400 hover:border-teal-500' : 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100'
-                      }`}
-                    >
-                      + {cr.title}
-                    </button>
-                  ))}
-                </div>
-
-                <textarea
-                  required
-                  placeholder="Detailed description of the customer request or troubleshooting steps..."
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className={`w-full px-3 py-2 rounded-xl border focus:outline-none h-24 ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-600'
-                  }`}
-                />
-              </div>
-
-
-              <div className={`flex justify-end gap-3 pt-4 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {cannedResponses.map((cr, idx) => (
                 <button
+                  key={idx}
                   type="button"
-                  onClick={() => setShowModal(false)}
-                  className={`px-4 py-2 rounded-xl font-bold border ${
-                    isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
-                  }`}
+                  onClick={() => handleApplyCanned(cr.text)}
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-medium border transition bg-slate-950 border-slate-800 text-indigo-400 hover:border-indigo-500"
                 >
-                  Cancel
+                  + {cr.title}
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-xl shadow-md shadow-teal-500/20"
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Log Ticket'}
-                </button>
-              </div>
-            </form>
+              ))}
+            </div>
+
+            <textarea
+              required
+              placeholder="Detailed description of the customer request or troubleshooting steps..."
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="w-full px-3.5 py-2.5 rounded-xl border focus:outline-none h-24 bg-slate-950 border-slate-800 text-white focus:border-indigo-500"
+            />
           </div>
-        </div>
-      )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="purple-gradient"
+              size="sm"
+              loading={submitting}
+            >
+              Log Ticket
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

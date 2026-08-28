@@ -12,6 +12,7 @@ import CommandPalette from './CommandPalette';
 import OnboardingModal from './OnboardingModal';
 import SessionTimeoutModal from './SessionTimeoutModal';
 import { useSessionSecurity } from '../hooks/useSessionSecurity';
+import api from '../api';
 
 export default function Layout({ onLogout }) {
   const navigate = useNavigate();
@@ -112,8 +113,25 @@ export default function Layout({ onLogout }) {
     navigate('/login');
   };
 
+  const prefetchRoute = (to) => {
+    try {
+      if (to === '/') api.getCached('/admin/dashboard/stats');
+      else if (to === '/organizations') api.getCached('/admin/organizations');
+      else if (to === '/shops') {
+        api.getCached('/admin/tenants');
+        api.getCached('/admin/shops');
+      } else if (to === '/licenses') {
+        api.getCached('/admin/licenses');
+        api.getCached('/admin/tenants');
+        api.getCached('/admin/packages');
+      } else if (to === '/machines') api.getCached('/admin/machines');
+      else if (to === '/payments') api.getCached('/admin/payments');
+      else if (to === '/analytics') api.getCached('/admin/analytics/overview');
+    } catch {}
+  };
+
   return (
-    <div className={`h-screen w-screen overflow-hidden flex font-sans selection:bg-teal-500/30 selection:text-teal-400 transition-colors duration-300 ${
+    <div className={`h-screen w-screen overflow-hidden flex font-sans selection:bg-indigo-500/30 selection:text-indigo-300 transition-colors duration-300 ${
       isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
       {/* Sidebar: Fixed, Pinned & Independently Scrollable */}
@@ -136,15 +154,15 @@ export default function Layout({ onLogout }) {
                 e.target.nextSibling.style.display = 'flex';
               }}
             />
-            <div className="hidden text-teal-600 font-extrabold text-[10px]">E-STORE</div>
+            <div className="hidden text-indigo-600 font-extrabold text-[10px]">E-STORE</div>
           </div>
           <div className="truncate">
             <h1 className={`font-extrabold text-xs sm:text-sm tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
               E-Store Control
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-              <span className="text-[10px] text-teal-500 font-bold uppercase tracking-wider">25 Modules Active</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">25 Modules Active</span>
             </div>
           </div>
         </div>
@@ -165,12 +183,14 @@ export default function Layout({ onLogout }) {
                     key={item.to}
                     to={item.to}
                     end={item.to === '/'}
+                    onMouseEnter={() => prefetchRoute(item.to)}
+                    onFocus={() => prefetchRoute(item.to)}
                     className={({ isActive }) => `
                       flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 group
                       ${isActive 
                         ? isDark
-                          ? 'bg-teal-500/15 text-teal-300 font-bold border border-teal-500/40 shadow-sm shadow-teal-500/10'
-                          : 'bg-teal-50 text-teal-800 font-bold border border-teal-200/80 shadow-xs' 
+                          ? 'bg-indigo-600/20 text-indigo-300 font-bold border border-indigo-500/40 shadow-sm shadow-indigo-500/10'
+                          : 'bg-indigo-50 text-indigo-900 font-bold border border-indigo-200/90 shadow-xs' 
                         : isDark
                           ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent'}
@@ -178,7 +198,7 @@ export default function Layout({ onLogout }) {
                   >
                     <div className="flex items-center gap-2.5 truncate">
                       <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${
-                        isDark ? 'text-slate-400 group-hover:text-teal-400' : 'text-slate-500 group-hover:text-teal-600'
+                        isDark ? 'text-slate-400 group-hover:text-indigo-400' : 'text-slate-500 group-hover:text-indigo-600'
                       }`} />
                       <span className="truncate">{item.label}</span>
                     </div>
@@ -196,10 +216,10 @@ export default function Layout({ onLogout }) {
         }`}>
           <button
             onClick={() => setIsOnboardingOpen(true)}
-            className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition shadow-sm border ${
+            className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition shadow-md border ${
               isDark
-                ? 'bg-teal-500/10 hover:bg-teal-500/20 border-teal-500/30 text-teal-300'
-                : 'bg-teal-50 hover:bg-teal-100 border-teal-200 text-teal-700'
+                ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 border-indigo-500/40 text-indigo-300 shadow-indigo-500/10'
+                : 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-700'
             }`}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -211,13 +231,13 @@ export default function Layout({ onLogout }) {
           }`}>
             <div className="flex items-center gap-2.5 truncate">
               <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
-                isDark ? 'bg-slate-800 text-teal-400 border border-slate-700' : 'bg-teal-50 text-teal-700 border border-teal-200'
+                isDark ? 'bg-slate-800 text-indigo-400 border border-slate-700' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
               }`}>
                 <User className="w-3.5 h-3.5" />
               </div>
               <div className="truncate">
                 <p className={`text-xs font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{user.username}</p>
-                <span className="text-[9px] text-teal-500 uppercase font-mono font-semibold">{user.role}</span>
+                <span className="text-[9px] text-indigo-400 uppercase font-mono font-semibold">{user.role}</span>
               </div>
             </div>
             <button
@@ -244,11 +264,11 @@ export default function Layout({ onLogout }) {
             onClick={() => setIsSearchOpen(true)}
             className={`flex items-center gap-3 px-3.5 py-2 rounded-2xl border text-xs transition max-w-md w-full ${
               isDark 
-                ? 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700' 
+                ? 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-indigo-500/50' 
                 : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-300'
             }`}
           >
-            <Search className="w-4 h-4 text-teal-500 shrink-0" />
+            <Search className="w-4 h-4 text-indigo-400 shrink-0" />
             <span className="flex-1 text-left truncate">Search organizations, licenses, devices, tickets...</span>
             <kbd className={`px-1.5 py-0.5 rounded-md font-mono text-[10px] shrink-0 ${
               isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600'
@@ -267,11 +287,11 @@ export default function Layout({ onLogout }) {
                 }}
                 className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition active:scale-95 ${
                   isDark 
-                    ? 'bg-slate-950 border-slate-800 text-slate-200 hover:border-slate-700' 
+                    ? 'bg-slate-950 border-slate-800 text-slate-200 hover:border-indigo-500/50' 
                     : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300 shadow-2xs'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                 <span>Actions</span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
@@ -284,7 +304,7 @@ export default function Layout({ onLogout }) {
                   <button
                     onClick={() => { setIsQuickActionsOpen(false); setIsOnboardingOpen(true); }}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium text-left transition ${
-                      isDark ? 'hover:bg-slate-800 text-teal-400' : 'hover:bg-slate-100 text-teal-700'
+                      isDark ? 'hover:bg-slate-800 text-indigo-400' : 'hover:bg-slate-100 text-indigo-700'
                     }`}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -296,7 +316,7 @@ export default function Layout({ onLogout }) {
                       isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
                     }`}
                   >
-                    <Key className="w-3.5 h-3.5 text-sky-400" />
+                    <Key className="w-3.5 h-3.5 text-indigo-400" />
                     <span>Issue Cryptographic Token</span>
                   </button>
                   <button
@@ -337,10 +357,10 @@ export default function Layout({ onLogout }) {
               >
                 <Bell className="w-4 h-4" />
                 {notifications.some(n => n.unread) && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-teal-500 animate-ping" />
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
                 )}
                 {notifications.some(n => n.unread) && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-teal-500" />
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500" />
                 )}
               </button>
 
@@ -350,12 +370,12 @@ export default function Layout({ onLogout }) {
                 }`}>
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/40">
                     <span className="text-xs font-bold flex items-center gap-1.5">
-                      <Bell className="w-3.5 h-3.5 text-teal-400" />
+                      <Bell className="w-3.5 h-3.5 text-indigo-400" />
                       <span>Security & System Alerts</span>
                     </span>
                     <button
                       onClick={() => setNotifications(prev => prev.map(n => ({ ...n, unread: false })))}
-                      className="text-[10px] text-teal-500 hover:underline font-semibold"
+                      className="text-[10px] text-indigo-400 hover:underline font-semibold"
                     >
                       Mark all read
                     </button>
@@ -366,7 +386,7 @@ export default function Layout({ onLogout }) {
                         key={notif.id}
                         className={`p-2.5 rounded-xl border text-xs transition ${
                           notif.unread
-                            ? isDark ? 'bg-slate-950 border-teal-500/30' : 'bg-teal-50/50 border-teal-200'
+                            ? isDark ? 'bg-slate-950 border-indigo-500/30' : 'bg-indigo-50/50 border-indigo-200'
                             : isDark ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50 border-slate-200'
                         }`}
                       >
@@ -402,21 +422,12 @@ export default function Layout({ onLogout }) {
             {/* SaaS Live Status */}
             <div className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold ${
               isDark 
-                ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' 
-                : 'bg-teal-50 border-teal-200 text-teal-700'
+                ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' 
+                : 'bg-indigo-50 border-indigo-200 text-indigo-700'
             }`}>
-              <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
               <span>SaaS Live</span>
             </div>
-
-            {/* Rapid Onboard Action */}
-            <button
-              onClick={() => setIsOnboardingOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-extrabold transition shadow-md shadow-teal-500/20 active:scale-95 hover:-translate-y-0.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Onboard</span>
-            </button>
           </div>
         </header>
 

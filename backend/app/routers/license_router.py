@@ -47,6 +47,39 @@ def activate_license(
         )
     return LicenseResponse(success=True, message=msg, token=token)
 
+class TransferRequest(BaseModel):
+    license_key: str = Field(..., example="ISTORE-BIZ-2026-0001")
+    new_machine_fingerprint: str = Field(..., example="MACH-NEW-HARDWARE-9921")
+    old_machine_fingerprint: Optional[str] = Field(default=None, example="MACH-OLD-HARDWARE-1102")
+    new_machine_name: Optional[str] = Field(default="Replacement-POS")
+    platform: Optional[str] = Field(default="Windows")
+    app_version: Optional[str] = Field(default="1.0.0")
+
+@router.post("/transfer-machine", response_model=LicenseResponse)
+@router.post("/transfer", response_model=LicenseResponse)
+def transfer_machine_binding(
+    req: TransferRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    ip_addr = request.client.host if request.client else None
+    success, msg, token = LicenseService.transfer_machine(
+        db=db,
+        license_key=req.license_key.strip(),
+        new_machine_fingerprint=req.new_machine_fingerprint.strip(),
+        old_machine_fingerprint=req.old_machine_fingerprint.strip() if req.old_machine_fingerprint else None,
+        new_machine_name=req.new_machine_name,
+        platform=req.platform,
+        app_version=req.app_version,
+        ip_address=ip_addr
+    )
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=msg
+        )
+    return LicenseResponse(success=True, message=msg, token=token)
+
 @router.post("/validate", response_model=LicenseResponse)
 def validate_license(
     req: ValidationRequest,

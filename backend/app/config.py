@@ -5,7 +5,9 @@ from pathlib import Path
 # Load .env if present
 try:
     from dotenv import load_dotenv
+    backend_dir = Path(__file__).resolve().parents[1]
     root_dir = Path(__file__).resolve().parents[2]
+    load_dotenv(backend_dir / ".env")
     load_dotenv(root_dir / ".env")
 except ImportError:
     pass
@@ -15,6 +17,10 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_SQLITE_PATH = (BACKEND_DIR / "license_platform.db").resolve().as_posix()
 
 def get_clean_database_url() -> str:
+    use_local = os.getenv("USE_LOCAL_DB", "").strip().lower() in ("true", "1", "yes")
+    if use_local:
+        return f"sqlite:///{DEFAULT_SQLITE_PATH}"
+
     raw_url = (
         os.getenv("DATABASE_URL")
         or os.getenv("POSTGRES_PRISMA_URL")

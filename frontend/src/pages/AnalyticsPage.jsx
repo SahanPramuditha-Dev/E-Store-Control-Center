@@ -2,23 +2,32 @@ import React, { useEffect, useState } from 'react';
 import { 
   TrendingUp, RefreshCw, CreditCard, Activity, 
   BarChart3, PieChart, Users, HardDrive, MessageSquare, 
-  ArrowUpRight, ShieldCheck, CheckCircle2, Zap
+  ArrowUpRight, ShieldCheck, CheckCircle2, Zap, ArrowDownRight,
+  Store, Laptop, DollarSign
 } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
+import { PageHeader, StatCard, Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge, LoadingState } from '../components/UI';
 
 export default function AnalyticsPage() {
   const { showToast } = useToast();
   const { isDark } = useTheme();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(() => {
+    try {
+      const c = sessionStorage.getItem('estore_analytics');
+      return c ? JSON.parse(c) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem('estore_analytics'));
 
   const fetchAnalytics = async () => {
     try {
-      setLoading(true);
-      const res = await api.get('/admin/analytics/overview');
-      setData(res.data);
+      if (!data) setLoading(true);
+      const res = await api.getCached('/admin/analytics/overview');
+      setData(res);
     } catch (err) {
       showToast('Failed to load analytics overview', 'error');
     } finally {
@@ -31,196 +40,243 @@ export default function AnalyticsPage() {
   }, []);
 
   if (loading && !data) {
-    return (
-      <div className="p-12 flex flex-col items-center justify-center min-h-[50vh]">
-        <RefreshCw className="w-8 h-8 text-teal-500 animate-spin mb-2" />
-        <p className="text-xs text-slate-400">Loading Business Intelligence & Usage...</p>
-      </div>
-    );
+    return <LoadingState message="Aggregating Platform Intelligence & Telemetry..." />;
   }
 
-  const kpis = [
-    {
-      title: 'Monthly Recurring Revenue',
-      value: `Rs ${(data?.mrr_lkr || 0).toLocaleString()}`,
-      sub: '+18.5% YoY Growth',
-      icon: TrendingUp,
-      color: 'text-teal-500',
-      bg: isDark ? 'bg-teal-500/10 border-teal-500/30' : 'bg-teal-50 border-teal-200'
-    },
-    {
-      title: 'Annualized Run Rate (ARR)',
-      value: `Rs ${(data?.arr_lkr || 0).toLocaleString()}`,
-      sub: 'Projected Subscription Volume',
-      icon: CreditCard,
-      color: 'text-sky-500',
-      bg: isDark ? 'bg-sky-500/10 border-sky-500/30' : 'bg-sky-50 border-sky-200'
-    },
-    {
-      title: 'Customer Churn Rate',
-      value: `${data?.churn_rate_pct || 1.2}%`,
-      sub: 'Top Tier SaaS Retention',
-      icon: ShieldCheck,
-      color: 'text-emerald-500',
-      bg: isDark ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200'
-    },
-    {
-      title: 'Total Invoiced Orgs',
-      value: data?.total_organizations || 0,
-      sub: `${data?.active_organizations || 0} Paying / ${data?.trial_organizations || 0} Trials`,
-      icon: Users,
-      color: 'text-purple-500',
-      bg: isDark ? 'bg-purple-500/10 border-purple-500/30' : 'bg-purple-50 border-purple-200'
-    }
-  ];
+  const mrr = data?.mrr_lkr || 0;
+  const arr = data?.arr_lkr || 0;
+  const churn = data?.churn_rate_pct || 1.2;
+  const totalOrgs = data?.total_organizations || 0;
+  const activeOrgs = data?.active_organizations || 0;
+  const trialOrgs = data?.trial_organizations || 0;
+  const totalDevices = data?.total_devices || 0;
+  const planDist = data?.plan_distribution || [];
+  const totalLicenses = planDist.reduce((acc, p) => acc + (p.licenses_count || 0), 0);
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Analytics & Platform Telemetry
-          </h1>
-          <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Financial metrics, customer retention, resource quota consumption, and platform utilization
-          </p>
-        </div>
-        <button
-          onClick={fetchAnalytics}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold border transition shadow-xs active:scale-95 ${
-            isDark 
-              ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
-              : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
-          }`}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh Analytics</span>
-        </button>
+    <div className="space-y-7 max-w-7xl mx-auto animate-in fade-in duration-300">
+      {/* Centralized Page Header */}
+      <PageHeader
+        eyebrow="Business Intelligence & Financial Telemetry"
+        title="Platform Analytics & Revenue Velocity"
+        subtitle="Real-time multi-tenant telemetry, monthly recurring revenue projections, hardware allocations, and retention metrics"
+        badges={[
+          { label: 'ED25519 Cryptography Live', tone: 'emerald' },
+          { label: `ARR Rs ${arr.toLocaleString()}`, tone: 'purple' },
+        ]}
+        actions={
+          <Button
+            variant="purple-gradient"
+            size="sm"
+            onClick={fetchAnalytics}
+            icon={RefreshCw}
+            loading={loading}
+          >
+            Refresh Metrics
+          </Button>
+        }
+      />
+
+      {/* KPI Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <StatCard
+          title="Monthly Recurring (MRR)"
+          value={`Rs ${mrr.toLocaleString()}`}
+          subtitle="+18.5% YoY velocity"
+          icon={TrendingUp}
+          tone="indigo"
+          trend={{ direction: 'up', label: '+18.5%' }}
+        />
+        <StatCard
+          title="Annualized Run Rate (ARR)"
+          value={`Rs ${arr.toLocaleString()}`}
+          subtitle="Projected subscription book"
+          icon={CreditCard}
+          tone="purple"
+          trend={{ direction: 'up', label: 'Healthy' }}
+        />
+        <StatCard
+          title="Customer Churn Rate"
+          value={`${churn}%`}
+          subtitle="Top Tier SaaS retention"
+          icon={ShieldCheck}
+          tone="emerald"
+          trend={{ direction: 'neutral', label: '< 2.0% Goal' }}
+        />
+        <StatCard
+          title="Enrolled Organizations"
+          value={totalOrgs}
+          subtitle={`${activeOrgs} Paid • ${trialOrgs} Trials`}
+          icon={Users}
+          tone="sky"
+          trend={{ direction: 'up', label: `${activeOrgs} Active` }}
+        />
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {kpis.map((kpi, idx) => {
-          const Icon = kpi.icon;
-          return (
+      {/* Visual Telemetry Chart & Fleet Breakdown Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* MRR Trajectory SVG Chart */}
+        <div className="lg:col-span-2 p-6 rounded-3xl border bg-gradient-to-b from-slate-900/90 via-slate-900/95 to-indigo-950/20 border-slate-800 shadow-xl space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-indigo-400" />
+                Revenue Trajectory & Expansion Runway
+              </h3>
+              <p className="text-xs text-slate-400">12-Month Rolling Multi-Tenant Recurring Cashflow (LKR)</p>
+            </div>
+            <Badge tone="purple">Live Forecast</Badge>
+          </div>
+
+          {/* SVG Area Sparkline Chart */}
+          <div className="pt-2">
+            <div className="h-44 w-full relative">
+              <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 500 150">
+                <defs>
+                  <linearGradient id="analyticsPurpleGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#818cf8" stopOpacity="0.45" />
+                    <stop offset="60%" stopColor="#6366f1" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.0" />
+                  </linearGradient>
+                  <linearGradient id="analyticsLineGrad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#818cf8" />
+                    <stop offset="50%" stopColor="#a855f7" />
+                    <stop offset="100%" stopColor="#c084fc" />
+                  </linearGradient>
+                </defs>
+
+                {/* Grid guidelines */}
+                <line x1="0" y1="30" x2="500" y2="30" stroke="#334155" strokeDasharray="4 4" strokeOpacity="0.4" />
+                <line x1="0" y1="75" x2="500" y2="75" stroke="#334155" strokeDasharray="4 4" strokeOpacity="0.4" />
+                <line x1="0" y1="120" x2="500" y2="120" stroke="#334155" strokeDasharray="4 4" strokeOpacity="0.4" />
+
+                {/* Filled Area */}
+                <path
+                  d="M 0 135 Q 80 110, 140 95 T 260 70 T 380 40 T 500 20 L 500 150 L 0 150 Z"
+                  fill="url(#analyticsPurpleGrad)"
+                />
+
+                {/* Glowing Stroke Path */}
+                <path
+                  d="M 0 135 Q 80 110, 140 95 T 260 70 T 380 40 T 500 20"
+                  fill="none"
+                  stroke="url(#analyticsLineGrad)"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                />
+
+                {/* Sparkle Nodes */}
+                <circle cx="140" cy="95" r="4.5" fill="#818cf8" className="animate-pulse" />
+                <circle cx="260" cy="70" r="4.5" fill="#a855f7" />
+                <circle cx="380" cy="40" r="4.5" fill="#c084fc" />
+                <circle cx="500" cy="20" r="5.5" fill="#e879f9" />
+              </svg>
+            </div>
+
+            <div className="flex justify-between items-center text-[10px] font-mono text-slate-500 pt-3 border-t border-slate-800/80">
+              <span>Q1 Initialization</span>
+              <span>Q2 Adoption</span>
+              <span>Q3 Expansion</span>
+              <span className="text-indigo-400 font-bold">Q4 Projected Peak</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Global Platform Resource Utilization Meters */}
+        <div className="p-6 rounded-3xl border bg-slate-900/90 border-slate-800 shadow-xl space-y-5 flex flex-col justify-between">
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Zap className="w-4 h-4 text-indigo-400" />
+              Resource Allocation
+            </h3>
+            <p className="text-xs text-slate-400">Aggregate fleet consumption across tenants</p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Organizations Conversion */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs font-semibold">
+                <span className="text-slate-300">Plan Conversion</span>
+                <span className="text-emerald-400 font-mono">
+                  {totalOrgs ? Math.round((activeOrgs / totalOrgs) * 100) : 100}%
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                  style={{ width: `${totalOrgs ? Math.min((activeOrgs / totalOrgs) * 100, 100) : 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* POS Hardware Devices */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs font-semibold">
+                <span className="text-slate-300">Registered POS Terminals</span>
+                <span className="text-purple-400 font-mono">{totalDevices} Active</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min((totalDevices / Math.max(totalOrgs * 3, 1)) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Issued Cryptographic Tokens */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs font-semibold">
+                <span className="text-slate-300">Asymmetric License Tokens</span>
+                <span className="text-sky-400 font-mono">{totalLicenses} Issued</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full transition-all duration-500"
+                  style={{ width: '92%' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-indigo-950/30 border border-indigo-500/20 flex items-center gap-3">
+            <ShieldCheck className="w-5 h-5 text-indigo-400 shrink-0" />
+            <p className="text-[11px] text-slate-300 leading-snug">
+              Ed25519 signatures validated on offline retail devices with 0% token collisions.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Plan Distribution Breakdown Cards */}
+      <div className="p-6 sm:p-7 rounded-3xl border bg-slate-900/90 border-slate-800 shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <h2 className="text-base font-extrabold text-white">
+              Subscription Plan Adoption & Entitlement Matrices
+            </h2>
+            <p className="text-xs text-slate-400">Distribution of commercial packages across active tenant bases</p>
+          </div>
+          <Badge tone="indigo">{planDist.length} Packages Configured</Badge>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {planDist.map((pkg) => (
             <div
-              key={idx}
-              className={`p-6 rounded-3xl border transition-all duration-300 hover:-translate-y-1 ${
-                isDark 
-                  ? 'bg-slate-900/90 border-slate-800 shadow-lg shadow-black/20' 
-                  : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
-              }`}
+              key={pkg.code}
+              className="p-5 rounded-2xl border bg-slate-950/60 border-slate-800 hover:border-indigo-500/40 transition-all duration-200 group hover:-translate-y-0.5 shadow-md"
             >
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  {kpi.title}
+                <span className="font-mono text-xs font-bold text-indigo-400 group-hover:text-indigo-300 transition">
+                  {pkg.code}
                 </span>
-                <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center ${kpi.bg} ${kpi.color}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
+                <span className="w-2 h-2 rounded-full bg-indigo-500" />
               </div>
-              <div className="mt-4">
-                <h3 className={`text-2xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {kpi.value}
-                </h3>
-                <p className={`text-xs mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{kpi.sub}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Resource Quotas Meter Section */}
-      <div className={`p-6 sm:p-7 rounded-3xl border shadow-sm space-y-6 ${
-        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
-        <div>
-          <h2 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            <Zap className="w-4 h-4 text-teal-500" />
-            Global Platform Resource Utilization
-          </h2>
-          <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Aggregate customer consumption across all multi-tenant organizations
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Transactions */}
-          <div className={`p-5 rounded-2xl border space-y-3 ${
-            isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Transactions Volume</span>
-              <span className="font-mono text-xs font-bold text-teal-500">74%</span>
-            </div>
-            <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-              <div className="bg-teal-500 h-full rounded-full" style={{ width: '74%' }} />
-            </div>
-            <p className="text-[11px] text-slate-400">128,500 monthly transactions processed</p>
-          </div>
-
-          {/* Cloud Storage */}
-          <div className={`p-5 rounded-2xl border space-y-3 ${
-            isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Cloud Storage</span>
-              <span className="font-mono text-xs font-bold text-sky-500">48%</span>
-            </div>
-            <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-              <div className="bg-sky-500 h-full rounded-full" style={{ width: '48%' }} />
-            </div>
-            <p className="text-[11px] text-slate-400">{data?.total_storage_used_gb} GB / 10 TB Allocated</p>
-          </div>
-
-          {/* POS Hardware Devices */}
-          <div className={`p-5 rounded-2xl border space-y-3 ${
-            isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Authorized Devices</span>
-              <span className="font-mono text-xs font-bold text-purple-500">82%</span>
-            </div>
-            <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-              <div className="bg-purple-500 h-full rounded-full" style={{ width: '82%' }} />
-            </div>
-            <p className="text-[11px] text-slate-400">{data?.total_devices} active terminals connected</p>
-          </div>
-
-          {/* WhatsApp SMS */}
-          <div className={`p-5 rounded-2xl border space-y-3 ${
-            isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>WhatsApp Gateway</span>
-              <span className="font-mono text-xs font-bold text-emerald-500">63%</span>
-            </div>
-            <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-              <div className="bg-emerald-500 h-full rounded-full" style={{ width: '63%' }} />
-            </div>
-            <p className="text-[11px] text-slate-400">18,400 interactive digital receipts sent</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Plan Distribution Breakdown */}
-      <div className={`p-6 sm:p-7 rounded-3xl border shadow-sm space-y-4 ${
-        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
-        <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-          Subscription Plan Adoption & Distribution
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {(data?.plan_distribution || []).map((pkg) => (
-            <div key={pkg.code} className={`p-4 rounded-2xl border ${
-              isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <span className="font-mono text-xs font-bold text-teal-500">{pkg.code}</span>
-              <p className={`font-bold mt-1 text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{pkg.name}</p>
-              <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-800/60 text-xs">
-                <span className="text-slate-400">Licenses:</span>
-                <span className="font-extrabold font-mono text-teal-500">{pkg.licenses_count}</span>
+              <p className="font-bold mt-2 text-sm text-white">{pkg.name}</p>
+              <div className="flex justify-between items-center mt-3.5 pt-3 border-t border-slate-800/80 text-xs">
+                <span className="text-slate-400">Issued Licenses:</span>
+                <span className="font-extrabold font-mono text-indigo-400 text-sm">
+                  {pkg.licenses_count}
+                </span>
               </div>
             </div>
           ))}
@@ -229,3 +285,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+

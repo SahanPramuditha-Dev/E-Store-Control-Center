@@ -2,32 +2,39 @@ import React, { useEffect, useState } from 'react';
 import { 
   Laptop, RefreshCw, CheckCircle2, XCircle, AlertCircle, 
   Search, Power, RotateCcw, Ban, Copy, Check, Filter, 
-  Cpu, HardDrive, Clock, Activity, Shield
+  Cpu, HardDrive, Clock, Activity, Shield, ShieldAlert
 } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../components/ToastContext';
 import { useTheme } from '../components/ThemeContext';
 import { formatRelativeTime, formatDateTime } from '../utils/dateUtils';
-
+import { Select, Button, Badge, PageHeader, Modal, ConfirmModal, EmptyState } from '../components/UI';
 
 export default function MachinesPage() {
   const { showToast } = useToast();
   const { isDark } = useTheme();
-  const [machines, setMachines] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [machines, setMachines] = useState(() => {
+    try {
+      const c = sessionStorage.getItem('estore_machines');
+      return c ? JSON.parse(c) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem('estore_machines'));
+  const searchParams = new URLSearchParams(window.location.search);
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('tenant') || '');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [copiedFp, setCopiedFp] = useState(null);
   const [selectedMachine, setSelectedMachine] = useState(null);
   const [showSpecModal, setShowSpecModal] = useState(false);
   const [showRevokeModal, setShowRevokeModal] = useState(false);
 
-
   const fetchMachines = async () => {
     try {
-      setLoading(true);
-      const res = await api.get('/admin/machines');
-      setMachines(res.data);
+      if (machines.length === 0) setLoading(true);
+      const data = await api.getCached('/admin/machines');
+      setMachines(Array.isArray(data) ? data : []);
     } catch (err) {
       showToast('Failed to load machine telemetry data.', 'error');
     } finally {
@@ -47,15 +54,19 @@ export default function MachinesPage() {
   };
 
   const handleUpdateStatus = async (machineId, newStatus) => {
+    const prevMachines = [...machines];
+    setMachines(prev => prev.map(m => m.id === machineId ? { ...m, status: newStatus } : m));
+    showToast(`Machine terminal status updated to ${newStatus}.`, 'success');
+
     try {
       await api.post(`/admin/machines/${machineId}/status`, {
         status: newStatus,
         reason: `Admin set status to ${newStatus}`
       });
-      showToast(`Machine terminal status updated to ${newStatus}.`, 'success');
-      fetchMachines();
+      api.clearCache('/admin/machines');
     } catch (err) {
-      showToast('Failed to update terminal status', 'error');
+      setMachines(prevMachines);
+      showToast('Failed to update terminal status on server. Reverted.', 'error');
     }
   };
 
@@ -82,31 +93,28 @@ export default function MachinesPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Terminal Telemetry & Hardware Matrix
-          </h1>
-          <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Real-time live heartbeat monitoring, hardware SHA-256 fingerprint tracking, and remote machine access control.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
+    <div className="space-y-7 max-w-7xl mx-auto animate-in fade-in duration-300">
+      {/* Centralized Page Header */}
+      <PageHeader
+        eyebrow="Fleet Telemetry & Machine Fingerprints"
+        title="Terminal Telemetry & Hardware Matrix"
+        subtitle="Real-time live heartbeat monitoring, hardware SHA-256 fingerprint tracking, and remote machine access control"
+        badges={[
+          { label: `${machines.length} Fleet Terminals`, tone: 'indigo' },
+          { label: `${machines.filter(m => isOnline(m.last_seen_at)).length} Live Heartbeats`, tone: 'emerald' },
+        ]}
+        actions={
+          <Button
+            variant="purple-gradient"
+            size="sm"
             onClick={fetchMachines}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold border transition shadow-xs active:scale-95 ${
-              isDark 
-                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
-                : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
-            }`}
+            icon={RefreshCw}
+            loading={loading}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh Telemetry</span>
-          </button>
-        </div>
-      </div>
+            Refresh Telemetry
+          </Button>
+        }
+      />
 
       {/* Filter Bar */}
       <div className={`flex flex-col md:flex-row gap-3 p-4 rounded-3xl border shadow-sm ${
@@ -121,24 +129,26 @@ export default function MachinesPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full rounded-2xl pl-10 pr-4 py-2.5 text-xs focus:outline-none transition border ${
               isDark 
-                ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-teal-500' 
-                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-teal-600'
+                ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500' 
+                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-600'
             }`}
           />
         </div>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className={`rounded-2xl px-3 py-2.5 text-xs font-bold focus:outline-none border ${
-            isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-          }`}
-        >
-          <option value="ALL">All Terminal Statuses</option>
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="DEACTIVATED">DEACTIVATED</option>
-          <option value="BLOCKED">BLOCKED</option>
-        </select>
+        <div className="w-52 shrink-0">
+          <Select
+            value={statusFilter}
+            onChange={(val) => setStatusFilter(val)}
+            options={[
+              { value: 'ALL', label: 'All Terminal Statuses' },
+              { value: 'ACTIVE', label: 'Active', badge: 'Live' },
+              { value: 'DEACTIVATED', label: 'Deactivated', badge: 'Off' },
+              { value: 'BLOCKED', label: 'Blocked', badge: 'Lock' },
+            ]}
+            size="md"
+            fullWidth
+          />
+        </div>
       </div>
 
       {/* Table */}
@@ -154,8 +164,8 @@ export default function MachinesPage() {
                 <th className="px-5 py-4">Terminal & Hardware ID</th>
                 <th className="px-5 py-4">Assigned Location</th>
                 <th className="px-5 py-4">OS & App Version</th>
-                <th className="px-5 py-4">Heartbeat Status</th>
-                <th className="px-5 py-4">Access State</th>
+                <th className="px-5 py-4">Heartbeat Telemetry</th>
+                <th className="px-5 py-4">Status</th>
                 <th className="px-5 py-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -165,14 +175,30 @@ export default function MachinesPage() {
               {loading && machines.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-slate-500">
-                    <RefreshCw className="w-6 h-6 text-teal-500 animate-spin mx-auto mb-2" />
+                    <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin mx-auto mb-2" />
                     Loading terminal matrix...
                   </td>
                 </tr>
               ) : filteredMachines.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-400">
-                    No machine terminals registered yet.
+                  <td colSpan={6} className="py-8">
+                    <EmptyState
+                      icon={Laptop}
+                      title="No POS Terminals Found"
+                      description="No hardware registers match your search query or status filter."
+                      action={
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setStatusFilter('ALL');
+                          }}
+                        >
+                          Clear Filters
+                        </Button>
+                      }
+                    />
                   </td>
                 </tr>
               ) : (
@@ -195,17 +221,17 @@ export default function MachinesPage() {
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="font-mono text-[11px] text-slate-400 select-all">
-                                {m.machine_fingerprint.slice(0, 16)}...
+                                {(m.machine_fingerprint || 'UNKNOWN').slice(0, 16)}...
                               </span>
                               <button
                                 onClick={() => handleCopy(m.machine_fingerprint)}
                                 title="Copy Full Fingerprint"
                                 className={`p-1 rounded-md transition ${
-                                  isDark ? 'text-slate-400 hover:text-teal-400 hover:bg-slate-800' : 'text-slate-500 hover:text-teal-600 hover:bg-slate-100'
+                                  isDark ? 'text-slate-400 hover:text-indigo-400 hover:bg-slate-800' : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-100'
                                 }`}
                               >
                                 {copiedFp === m.machine_fingerprint ? (
-                                  <Check className="w-3 h-3 text-teal-500" />
+                                  <Check className="w-3 h-3 text-emerald-400" />
                                 ) : (
                                   <Copy className="w-3 h-3" />
                                 )}
@@ -216,13 +242,21 @@ export default function MachinesPage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <div className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{m.shop_name}</div>
-                        <div className="text-slate-400 text-[11px]">{m.tenant_name}</div>
+                        <div className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                          {m.shop_name || 'Main Branch'}
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          {m.tenant_name || 'Direct Tenant'}
+                        </div>
                       </td>
 
                       <td className="px-5 py-4">
-                        <div className="font-medium text-slate-400">{m.os_info || 'Windows POS'}</div>
-                        <div className="text-[10px] font-mono text-teal-500">v{m.app_version || '1.0.0'}</div>
+                        <div className="font-mono text-slate-300">
+                          {m.os_info || 'Windows 11'}
+                        </div>
+                        <div className="text-[10px] text-indigo-400 font-mono">
+                          App v{m.app_version || '2026.1.0'}
+                        </div>
                       </td>
 
                       <td className="px-5 py-4">
@@ -238,18 +272,11 @@ export default function MachinesPage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                          active 
-                            ? isDark ? 'bg-teal-500/10 text-teal-400 border-teal-500/30' : 'bg-teal-50 text-teal-700 border-teal-200' 
-                            : isDark ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' : 'bg-rose-50 text-rose-700 border-rose-200'
-                        }`}>
-                          {m.status}
-                        </span>
+                        <Badge tone={active ? 'indigo' : 'rose'}>{m.status}</Badge>
                       </td>
 
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Hardware Spec Inspector */}
                           <button
                             onClick={() => {
                               setSelectedMachine(m);
@@ -269,9 +296,9 @@ export default function MachinesPage() {
                                 setSelectedMachine(m);
                                 setShowRevokeModal(true);
                               }}
-                              title="Emergency Revoke / Unbind"
+                              title="Revoke / Deactivate Terminal"
                               className={`p-1.5 rounded-xl border transition ${
-                                isDark ? 'bg-slate-800 text-rose-400 border-slate-700 hover:bg-rose-950/40' : 'bg-slate-100 text-rose-700 border-slate-200 hover:bg-rose-50'
+                                isDark ? 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
                               }`}
                             >
                               <Ban className="w-3.5 h-3.5" />
@@ -279,12 +306,12 @@ export default function MachinesPage() {
                           ) : (
                             <button
                               onClick={() => handleUpdateStatus(m.id, 'ACTIVE')}
-                              title="Re-activate Machine"
+                              title="Re-authorize Terminal"
                               className={`p-1.5 rounded-xl border transition ${
-                                isDark ? 'bg-slate-800 text-teal-400 border-slate-700 hover:bg-teal-950/40' : 'bg-slate-100 text-teal-700 border-slate-200 hover:bg-teal-50'
+                                isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                               }`}
                             >
-                              <Power className="w-3.5 h-3.5" />
+                              <RotateCcw className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
@@ -298,115 +325,145 @@ export default function MachinesPage() {
         </div>
       </div>
 
-      {/* Modal: Hardware Telemetry Inspector */}
-      {showSpecModal && selectedMachine && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className={`w-full max-w-md rounded-3xl p-6 border shadow-2xl space-y-5 ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Laptop className="w-5 h-5 text-teal-500" />
-                <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {selectedMachine.machine_name || 'Terminal POS Device'}
-                </h3>
-              </div>
-              <button onClick={() => setShowSpecModal(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-4 h-4" />
-              </button>
+      {/* Modal: Machine Specs Inspector */}
+      {selectedMachine && (
+        <Modal
+          isOpen={showSpecModal}
+          onClose={() => setShowSpecModal(false)}
+          title={`Terminal Spec: ${selectedMachine.machine_name || 'POS'}`}
+          subtitle="Cryptographic hardware binding signature and telemetry logs"
+          icon={Cpu}
+          maxWidth="max-w-md"
+        >
+          <div className="space-y-3 text-xs">
+            <div className="p-3 rounded-2xl border space-y-1 bg-slate-950 border-slate-800">
+              <span className="text-slate-400 font-mono text-[10px]">SHA-256 HARDWARE FINGERPRINT</span>
+              <p className="font-mono text-[11px] font-bold text-indigo-400 break-all">{selectedMachine.machine_fingerprint}</p>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className={`p-3 rounded-2xl border space-y-1 ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <span className="text-slate-400 font-mono text-[10px]">SHA-256 HARDWARE FINGERPRINT</span>
-                <p className="font-mono text-[11px] font-bold text-teal-400 break-all">{selectedMachine.machine_fingerprint}</p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="p-3 rounded-2xl border bg-slate-950 border-slate-800">
+                <span className="text-slate-400 text-[10px]">OPERATING SYSTEM</span>
+                <p className="font-bold mt-0.5 text-white">{selectedMachine.os_info || 'Windows 11 POS'}</p>
               </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="text-slate-400 text-[10px]">OPERATING SYSTEM</span>
-                  <p className={`font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedMachine.os_info || 'Windows 11 POS'}</p>
-                </div>
-                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="text-slate-400 text-[10px]">DESKTOP APP VERSION</span>
-                  <p className="font-mono text-teal-400 font-bold mt-0.5">v{selectedMachine.app_version || '2026.1.0'}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="text-slate-400 text-[10px]">TENANT ENTITY</span>
-                  <p className={`font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedMachine.tenant_name}</p>
-                </div>
-                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="text-slate-400 text-[10px]">REGISTERED SHOP</span>
-                  <p className={`font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedMachine.shop_name}</p>
-                </div>
-              </div>
-
-              <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <span className="text-slate-400 text-[10px]">LAST HEARTBEAT TELEMETRY</span>
-                <p className={`font-mono text-[11px] mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {formatDateTime(selectedMachine.last_seen_at)}
-                </p>
+              <div className="p-3 rounded-2xl border bg-slate-950 border-slate-800">
+                <span className="text-slate-400 text-[10px]">DESKTOP APP VERSION</span>
+                <p className="font-mono text-indigo-400 font-bold mt-0.5">v{selectedMachine.app_version || '2026.1.0'}</p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowSpecModal(false)}
-              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-xs font-bold transition"
-            >
-              Close Inspector
-            </button>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="p-3 rounded-2xl border bg-slate-950 border-slate-800">
+                <span className="text-slate-400 text-[10px]">TENANT ENTITY</span>
+                <p className="font-bold mt-0.5 text-white">{selectedMachine.tenant_name}</p>
+              </div>
+              <div className="p-3 rounded-2xl border bg-slate-950 border-slate-800">
+                <span className="text-slate-400 text-[10px]">REGISTERED SHOP</span>
+                <p className="font-bold mt-0.5 text-white">{selectedMachine.shop_name}</p>
+              </div>
+            </div>
+
+            {/* Live Telemetry Health Matrix */}
+            {selectedMachine.telemetry && Object.keys(selectedMachine.telemetry).length > 0 && (
+              <div className="p-3.5 rounded-2xl border space-y-2 bg-slate-900/60 border-slate-800">
+                <span className="text-slate-400 font-mono text-[10px] uppercase font-bold flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-emerald-400" /> Live System Telemetry
+                </span>
+                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                  <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800/80">
+                    <span className="text-slate-400 text-[10px] block">CPU Load</span>
+                    <span className="font-bold text-white">{selectedMachine.telemetry.cpu_percent ?? '--'}%</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800/80">
+                    <span className="text-slate-400 text-[10px] block">Memory</span>
+                    <span className="font-bold text-white">{selectedMachine.telemetry.memory_percent ?? '--'}%</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800/80">
+                    <span className="text-slate-400 text-[10px] block">Free Disk</span>
+                    <span className="font-bold text-white">{selectedMachine.telemetry.disk_free_gb ?? '--'} GB</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800/80">
+                    <span className="text-slate-400 text-[10px] block">DB Size</span>
+                    <span className="font-bold text-white">{selectedMachine.telemetry.database_size_mb ?? '--'} MB</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800/80">
+                    <span className="text-slate-400 text-[10px] block">Pending Sync</span>
+                    <span className="font-bold text-amber-400">{selectedMachine.telemetry.pending_outbox_events ?? 0}</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800/80">
+                    <span className="text-slate-400 text-[10px] block">IP Address</span>
+                    <span className="font-mono text-[10px] text-slate-300 truncate block">{selectedMachine.ip_address || '127.0.0.1'}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Remote Command Dispatch */}
+            <div className="p-3.5 rounded-2xl border space-y-2 bg-slate-950 border-slate-800">
+              <span className="text-slate-400 text-[10px] uppercase font-bold block">Remote Control Dispatch</span>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  onClick={async () => {
+                    try {
+                      await api.post(`/admin/machines/${selectedMachine.id}/command`, { command: 'FORCE_SYNC' });
+                      showToast('Force Sync command queued for terminal.', 'success');
+                    } catch {
+                      showToast('Failed to queue command.', 'error');
+                    }
+                  }}
+                >
+                  Force Outbox Sync
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  onClick={async () => {
+                    try {
+                      await api.post(`/admin/machines/${selectedMachine.id}/command`, { command: 'REFRESH_LICENSE' });
+                      showToast('Refresh License command queued.', 'success');
+                    } catch {
+                      showToast('Failed to queue command.', 'error');
+                    }
+                  }}
+                >
+                  Refresh License
+                </Button>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                fullWidth
+                onClick={() => setShowSpecModal(false)}
+              >
+                Close Inspector
+              </Button>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
-      {/* Modal: Emergency Terminal Revocation / Kill Switch */}
-      {showRevokeModal && selectedMachine && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className={`w-full max-w-md rounded-3xl p-6 border shadow-2xl space-y-5 text-center ${
-            isDark ? 'bg-slate-900 border-rose-500/30' : 'bg-white border-rose-200'
-          }`}>
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/30 flex items-center justify-center mx-auto">
-              <ShieldAlert className="w-6 h-6" />
-            </div>
-
-            <div className="space-y-1.5">
-              <h3 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Revoke POS Terminal Authorization?
-              </h3>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                This will immediately invalidate the local license cryptographic session on terminal <span className="font-mono font-bold text-rose-400">{selectedMachine.machine_name || 'Terminal'}</span> and lock checkout operations.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowRevokeModal(false)}
-                className={`py-2.5 rounded-2xl text-xs font-bold border transition ${
-                  isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
-                }`}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  await handleUpdateStatus(selectedMachine.id, 'DEACTIVATED');
-                  setShowRevokeModal(false);
-                }}
-                className="py-2.5 bg-rose-500 hover:bg-rose-400 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-rose-500/25"
-              >
-                Revoke Immediately
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* ConfirmModal: Terminal Revocation */}
+      {selectedMachine && (
+        <ConfirmModal
+          isOpen={showRevokeModal}
+          onClose={() => setShowRevokeModal(false)}
+          onConfirm={async () => {
+            await handleUpdateStatus(selectedMachine.id, 'DEACTIVATED');
+            setShowRevokeModal(false);
+          }}
+          title="Revoke POS Terminal Authorization?"
+          description={`This will immediately invalidate the local license cryptographic session on terminal ${selectedMachine.machine_name || 'Terminal'} and lock checkout operations.`}
+          confirmText="Revoke Authorization"
+          cancelText="Cancel"
+          tone="danger"
+          icon={ShieldAlert}
+        />
       )}
-
     </div>
   );
 }
