@@ -2,10 +2,21 @@ import os
 import sys
 from pathlib import Path
 
-# Add backend directory to sys.path
-backend_dir = Path(__file__).resolve().parent.parent
-if str(backend_dir) not in sys.path:
-    sys.path.insert(0, str(backend_dir))
+current_dir = Path(__file__).resolve().parent
+parent_dir = current_dir.parent
+
+for p in [
+    current_dir,
+    parent_dir,
+    parent_dir / "backend",
+    Path("/var/task"),
+    Path("/var/task/backend"),
+    Path(os.getcwd()),
+    Path(os.getcwd()) / "backend"
+]:
+    p_str = str(p)
+    if p_str not in sys.path:
+        sys.path.insert(0, p_str)
 
 try:
     from app.main import app
