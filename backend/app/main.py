@@ -87,17 +87,28 @@ async def add_security_headers(request, call_next):
 # License & Client Facing Endpoints
 app.include_router(license_router.router)
 
+@app.api_route("/debug-headers", methods=["GET", "POST"])
+def debug_headers(request: Request):
+    return {
+        "path": request.scope.get("path"),
+        "raw_path": request.scope.get("raw_path", b"").decode("utf-8", errors="ignore"),
+        "headers": {k.decode("utf-8", errors="ignore"): v.decode("utf-8", errors="ignore") for k, v in request.scope.get("headers", [])}
+    }
+
 # Admin Portal Endpoints
 app.include_router(admin_auth_router.router)
 app.include_router(admin_management_router.router)
 
 @app.get("/")
-def root():
+def root(request: Request):
+    headers_dict = {k.decode("utf-8", errors="ignore"): v.decode("utf-8", errors="ignore") for k, v in request.scope.get("headers", [])}
     return {
         "status": "online",
         "service": settings.PROJECT_NAME,
         "schema_version": settings.CURRENT_LICENSE_SCHEMA_VERSION,
-        "docs_url": "/docs"
+        "docs_url": "/docs",
+        "scope_path": request.scope.get("path"),
+        "headers": headers_dict
     }
 
 @app.get("/api/health")
