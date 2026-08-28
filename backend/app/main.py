@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -36,10 +36,14 @@ class VercelPathFixMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             headers = dict(scope.get("headers", []))
-            matched_path = headers.get(b"x-matched-path", b"").decode("utf-8")
             forwarded_uri = headers.get(b"x-forwarded-uri", b"").decode("utf-8")
-            real_path = matched_path or forwarded_uri
-            if real_path and not real_path.startswith(("/api/index.py", "/api/index")):
+            matched_path = headers.get(b"x-matched-path", b"").decode("utf-8")
+            
+            real_path = forwarded_uri
+            if not real_path and matched_path and not matched_path.startswith(("/api/index.py", "/api/index")):
+                real_path = matched_path
+                
+            if real_path:
                 scope["path"] = real_path.split("?")[0]
             elif scope.get("path") in ["/api/index.py", "/api/index"]:
                 scope["path"] = "/"
