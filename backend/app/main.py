@@ -35,18 +35,28 @@ class VercelPathFixMiddleware:
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
-            headers = dict(scope.get("headers", []))
-            forwarded_uri = headers.get(b"x-forwarded-uri", b"").decode("utf-8")
-            matched_path = headers.get(b"x-matched-path", b"").decode("utf-8")
+            from urllib.parse import parse_qs, urlencode
+            query_string = scope.get("query_string", b"").decode("utf-8", errors="ignore")
+            params = parse_qs(query_string)
             
-            real_path = forwarded_uri
-            if not real_path and matched_path and not matched_path.startswith(("/api/index.py", "/api/index")):
-                real_path = matched_path
+            if "__path" in params and params["__path"]:
+                scope["path"] = params["__path"][0]
+                del params["__path"]
+                scope["query_string"] = urlencode(params, doseq=True).encode("utf-8")
+            else:
+                headers = dict(scope.get("headers", []))
+                forwarded_uri = headers.get(b"x-forwarded-uri", b"").decode("utf-8", errors="ignore")
+                matched_path = headers.get(b"x-matched-path", b"").decode("utf-8", errors="ignore")
                 
-            if real_path:
-                scope["path"] = real_path.split("?")[0]
-            elif scope.get("path") in ["/api/index.py", "/api/index"]:
-                scope["path"] = "/"
+                real_path = forwarded_uri
+                if not real_path and matched_path and not matched_path.startswith(("/api/index.py", "/api/index")):
+                    real_path = matched_path
+                    
+                if real_path:
+                    scope["path"] = real_path.split("?")[0]
+                elif scope.get("path") in ["/api/index.py", "/api/index"]:
+                    scope["path"] = "/"
+                    
         await self.app(scope, receive, send)
 
 app.add_middleware(VercelPathFixMiddleware)
