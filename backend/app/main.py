@@ -103,23 +103,25 @@ def health_check():
         "schema_version": settings.CURRENT_LICENSE_SCHEMA_VERSION
     }
 
-@app.get("/api/db-check")
-def db_connection_check(db: Session = Depends(get_db)):
+@app.get("/api/debug-info")
+def debug_info():
+    import sys, os, traceback
+    info = {
+        "python_version": sys.version,
+        "is_vercel": bool(os.getenv("VERCEL")),
+        "db_url_masked": settings.DATABASE_URL.split("@")[-1] if "@" in settings.DATABASE_URL else settings.DATABASE_URL[:20],
+        "db_driver": settings.DATABASE_URL.split("://")[0] if "://" in settings.DATABASE_URL else "unknown",
+        "env_keys": [k for k in os.environ.keys() if "DATABASE" in k or "POSTGRES" in k or "SECRET" in k or "VERCEL" in k]
+    }
     try:
+        from app.database import engine, SessionLocal
         from sqlalchemy import text
-        result = db.execute(text("SELECT 1 AS live, current_database(), current_user;")).fetchone()
-        return {
-            "status": "connected",
-            "message": "Supabase Cloud Database is connected and responding!",
-            "database": result[1],
-            "connected_as": result[2],
-            "host": settings.DATABASE_URL.split("@")[-1] if "@" in settings.DATABASE_URL else "masked"
-        }
+        with engine.connect() as conn:
+            res = conn.execute(text("SELECT 1;")).fetchone()
+            info["db_query_result"] = str(res)
+            info["db_status"] = "OK"
     except Exception as e:
-        import traceback
-        return {
-            "status": "error",
-            "message": "Database connection failed",
-            "error": str(e),
-            "trace": traceback.format_exc()[-300:]
-        }
+        info["db_status"] = "FAILED"
+        info["db_error"] = str(e)
+        info["db_trace"] = traceback.format_exc()
+    return info
