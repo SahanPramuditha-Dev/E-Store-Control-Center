@@ -14,7 +14,10 @@ except ImportError:
 
 # Absolute DB path so running from any CWD always targets the same database file
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_SQLITE_PATH = (BACKEND_DIR / "license_platform.db").resolve().as_posix()
+if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    DEFAULT_SQLITE_PATH = "/tmp/license_platform.db"
+else:
+    DEFAULT_SQLITE_PATH = (BACKEND_DIR / "license_platform.db").resolve().as_posix()
 
 def get_clean_database_url() -> str:
     use_local = os.getenv("USE_LOCAL_DB", "").strip().lower() in ("true", "1", "yes")

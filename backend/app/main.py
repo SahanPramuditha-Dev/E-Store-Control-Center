@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from app.config import settings
 from app.database import engine, Base, get_db
+import app.models
 from app.routers import license_router, admin_auth_router, admin_management_router
 
 # Auto-create tables for local SQLite development

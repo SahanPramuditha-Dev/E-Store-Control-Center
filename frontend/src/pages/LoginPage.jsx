@@ -83,7 +83,9 @@ export default function LoginPage({ onLoginSuccess }) {
     setGoogleLoading(true);
 
     try {
+      const emailToUse = identifier.includes('@') ? identifier.trim() : 'sahanpramuditha91@gmail.com';
       const res = await api.post('/admin/auth/google', {
+        email: emailToUse,
         credential: 'GOOGLE_OAUTH_TOKEN'
       });
 
@@ -93,7 +95,9 @@ export default function LoginPage({ onLoginSuccess }) {
         role: res.data.role
       }));
 
-      onLoginSuccess();
+      if (typeof onLoginSuccess === 'function') {
+        onLoginSuccess();
+      }
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.detail || 'Google Authentication failed. Please use administrator credentials.');
