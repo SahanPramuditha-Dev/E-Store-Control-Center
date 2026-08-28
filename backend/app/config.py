@@ -30,11 +30,9 @@ def get_clean_database_url() -> str:
         or os.getenv("POSTGRES_URL")
         or f"sqlite:///{DEFAULT_SQLITE_PATH}"
     )
-    # SQLAlchemy 2.0 requires postgresql:// or postgresql+pg8000:// for serverless pure python execution
+    # SQLAlchemy 2.0 requires postgresql:// instead of postgres://
     if raw_url.startswith("postgres://"):
-        raw_url = raw_url.replace("postgres://", "postgresql+pg8000://", 1)
-    elif raw_url.startswith("postgresql://") and not any(d in raw_url for d in ["+pg8000", "+psycopg", "+asyncpg"]):
-        raw_url = raw_url.replace("postgresql://", "postgresql+pg8000://", 1)
+        raw_url = raw_url.replace("postgres://", "postgresql://", 1)
     
     # Strip pgbouncer / supa query parameters that strict drivers reject
     if "?" in raw_url:
