@@ -35,9 +35,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
                 return hmac.compare_digest(calc.hex(), target_hash)
         
         # Fallback passlib verify
-        from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
-        return pwd_context.verify(plain_password, hashed_password)
+        try:
+            from passlib.context import CryptContext
+            pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
+            return pwd_context.verify(plain_password, hashed_password)
+        except Exception:
+            return False
     except Exception:
         return False
 

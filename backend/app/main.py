@@ -69,20 +69,6 @@ app.add_middleware(
 # Enterprise Security Headers Middleware
 @app.middleware("http")
 async def add_security_headers(request, call_next):
-    # Handle preflight OPTIONS requests gracefully
-    if request.method == "OPTIONS":
-        origin = request.headers.get("origin", "*")
-        return JSONResponse(
-            status_code=200,
-            content={"status": "ok"},
-            headers={
-                "Access-Control-Allow-Origin": origin,
-                "Access-Control-Allow-Credentials": "true",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-                "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Origin, X-Requested-With",
-            }
-        )
-
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
