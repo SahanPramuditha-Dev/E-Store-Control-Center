@@ -416,7 +416,7 @@ export function Select({
   error,
   disabled = false,
   searchable = false,
-  placement = 'bottom', // 'bottom' | 'top' | 'auto'
+  placement = 'auto', // 'bottom' | 'top' | 'auto'
   name,
   ...props
 }) {
@@ -484,8 +484,7 @@ export function Select({
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target) &&
-        menuRef.current &&
-        !menuRef.current.contains(event.target)
+        (!menuRef.current || !menuRef.current.contains(event.target))
       ) {
         setIsOpen(false);
       }
@@ -965,11 +964,41 @@ export function DropdownMenu({
   className = '',
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
+  const rootRef = React.useRef(null);
+  const triggerRef = React.useRef(null);
   const menuRef = React.useRef(null);
+  const [menuPosition, setMenuPosition] = React.useState(null);
+
+  const updateMenuPosition = React.useCallback(() => {
+    const triggerElement = triggerRef.current;
+    if (!triggerElement) return;
+
+    const rect = triggerElement.getBoundingClientRect();
+    const viewportPadding = 12;
+    const gap = 6;
+    const width = Math.min(192, window.innerWidth - viewportPadding * 2);
+    const desiredHeight = Math.min(320, Math.max(48, items.length * 38 + 12));
+    const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
+    const spaceAbove = rect.top - viewportPadding - gap;
+    const openAbove = spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+    const maxHeight = Math.min(desiredHeight, Math.max(72, openAbove ? spaceAbove : spaceBelow));
+    const preferredLeft = align === 'right' ? rect.right - width : rect.left;
+
+    setMenuPosition({
+      left: Math.min(Math.max(viewportPadding, preferredLeft), window.innerWidth - width - viewportPadding),
+      top: openAbove ? rect.top - gap - maxHeight : rect.bottom + gap,
+      width,
+      maxHeight,
+    });
+  }, [align, items.length]);
 
   React.useEffect(() => {
     function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (
+        rootRef.current &&
+        !rootRef.current.contains(event.target) &&
+        (!menuRef.current || !menuRef.current.contains(event.target))
+      ) {
         setIsOpen(false);
       }
     }
@@ -977,21 +1006,40 @@ export function DropdownMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  React.useLayoutEffect(() => {
+    if (!isOpen) {
+      setMenuPosition(null);
+      return undefined;
+    }
+
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [isOpen, updateMenuPosition]);
+
   return (
-    <div className={cn("relative inline-block text-left", className)} ref={menuRef}>
-      <div onClick={() => setIsOpen(!isOpen)}>
+    <div className={cn("relative inline-block text-left", className)} ref={rootRef}>
+      <div ref={triggerRef} onClick={() => setIsOpen(!isOpen)}>
         {trigger}
       </div>
 
-      {isOpen && (
+      {isOpen && menuPosition && createPortal(
         <div
+          ref={menuRef}
           className={cn(
-            "absolute z-[110] mt-1.5 w-48 rounded-2xl p-1.5 border shadow-2xl animate-in fade-in zoom-in-95 duration-150",
+            "fixed z-[9999] rounded-2xl p-1.5 border shadow-2xl animate-in fade-in zoom-in-95 duration-150 overflow-y-auto custom-scrollbar",
             "bg-slate-900/98 backdrop-blur-2xl border-slate-700/80 shadow-black/80",
-            align === 'right' ? "right-0" : "left-0"
           )}
           style={{
             boxShadow: '0 20px 35px -10px rgba(0,0,0,0.8), 0 0 0 1px rgba(99,102,241,0.15)',
+            left: menuPosition.left,
+            top: menuPosition.top,
+            width: menuPosition.width,
+            maxHeight: menuPosition.maxHeight,
           }}
         >
           <div className="space-y-0.5">
@@ -1031,7 +1079,8 @@ export function DropdownMenu({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

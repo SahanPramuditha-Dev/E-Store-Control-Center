@@ -297,7 +297,7 @@ export default function Layout({ onLogout }) {
               </button>
 
               {isQuickActionsOpen && (
-                <div className={`absolute right-0 mt-2 w-56 rounded-2xl border shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 ${
+                <div className={`absolute right-0 mt-2 w-[min(14rem,calc(100vw-1.5rem))] rounded-2xl border shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 ${
                   isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
                 }`}>
                   <div className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 text-slate-400">Quick Shortcuts</div>
@@ -365,7 +365,7 @@ export default function Layout({ onLogout }) {
               </button>
 
               {isNotifOpen && (
-                <div className={`absolute right-0 mt-2 w-80 rounded-2xl border shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150 ${
+                <div className={`absolute right-0 mt-2 w-[min(20rem,calc(100vw-1.5rem))] max-h-[min(28rem,calc(100vh-5rem))] overflow-y-auto rounded-2xl border shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150 ${
                   isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
                 }`}>
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/40">
