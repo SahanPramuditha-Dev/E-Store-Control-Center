@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { createPortal } from 'react-dom';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Loader2, AlertCircle, AlertTriangle, CheckCircle2, Info, Sparkles } from 'lucide-react';
@@ -415,14 +416,17 @@ export function Select({
   error,
   disabled = false,
   searchable = false,
-  placement = 'bottom', // 'bottom' | 'top'
+  placement = 'bottom', // 'bottom' | 'top' | 'auto'
   name,
   ...props
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const dropdownRef = React.useRef(null);
+  const triggerRef = React.useRef(null);
+  const menuRef = React.useRef(null);
   const searchInputRef = React.useRef(null);
+  const [menuPosition, setMenuPosition] = React.useState(null);
 
   // Normalize options array: string[] -> { value, label }[]
   const normalizedOptions = React.useMemo(() => {
@@ -433,6 +437,32 @@ export function Select({
       return opt;
     });
   }, [options]);
+
+  const updateMenuPosition = React.useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const gap = 8;
+    const viewportPadding = 12;
+    const hasSearch = searchable || normalizedOptions.length > 8;
+    const desiredHeight = Math.min(288, Math.max(96, normalizedOptions.length * 58 + (hasSearch ? 54 : 12)));
+    const spaceAbove = rect.top - viewportPadding - gap;
+    const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
+    const resolvedPlacement = placement === 'auto'
+      ? (spaceBelow >= desiredHeight || spaceBelow >= spaceAbove ? 'bottom' : 'top')
+      : placement;
+    const availableHeight = Math.max(96, resolvedPlacement === 'top' ? spaceAbove : spaceBelow);
+    const menuHeight = Math.min(desiredHeight, availableHeight);
+
+    setMenuPosition({
+      left: rect.left,
+      top: resolvedPlacement === 'top' ? rect.top - gap - menuHeight : rect.bottom + gap,
+      width: rect.width,
+      maxHeight: menuHeight,
+      placement: resolvedPlacement,
+    });
+  }, [normalizedOptions.length, placement, searchable]);
 
   const selectedOption = normalizedOptions.find((opt) => String(opt.value) === String(value));
   const SelectedIcon = selectedOption?.icon || LeadingIcon;
@@ -451,7 +481,12 @@ export function Select({
   // Close on outside click
   React.useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target)
+      ) {
         setIsOpen(false);
       }
     }
@@ -480,6 +515,21 @@ export function Select({
       setSearchQuery('');
     }
   }, [isOpen, searchable, normalizedOptions.length]);
+
+  React.useLayoutEffect(() => {
+    if (!isOpen) {
+      setMenuPosition(null);
+      return undefined;
+    }
+
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [isOpen, updateMenuPosition]);
 
   const handleSelect = (optionValue) => {
     if (onChange) {
@@ -515,6 +565,7 @@ export function Select({
 
       {/* Trigger Button */}
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
@@ -571,17 +622,20 @@ export function Select({
       </button>
 
       {/* Floating Dropdown Popover */}
-      {isOpen && (
+      {isOpen && menuPosition && createPortal(
         <div
+          ref={menuRef}
           className={cn(
-            "absolute left-0 right-0 z-[120] rounded-2xl p-1.5 shadow-2xl border transition-all animate-in fade-in zoom-in-95 duration-150",
+            "fixed z-[9999] rounded-2xl p-1.5 shadow-2xl border transition-all animate-in fade-in zoom-in-95 duration-150 flex flex-col",
             "bg-slate-900/98 backdrop-blur-2xl border-slate-700/80 shadow-black/80",
-            placement === 'top' ? "bottom-full mb-2" : "top-full mt-2",
             menuClassName
           )}
           style={{
             boxShadow: '0 20px 40px -10px rgba(0,0,0,0.8), 0 0 0 1px rgba(99,102,241,0.15), 0 0 25px rgba(99,102,241,0.15)',
-            minWidth: '100%',
+            left: menuPosition.left,
+            top: menuPosition.top,
+            width: menuPosition.width,
+            maxHeight: menuPosition.maxHeight,
           }}
         >
           {showSearch && (
@@ -597,7 +651,7 @@ export function Select({
             </div>
           )}
 
-          <div className="max-h-60 overflow-y-auto space-y-1 custom-scrollbar">
+          <div className="min-h-0 flex-1 overflow-y-auto space-y-1 custom-scrollbar">
             {filteredOptions.length === 0 ? (
               <div className="p-4 text-center text-xs text-slate-500">
                 No matching options
@@ -660,7 +714,8 @@ export function Select({
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {error && <p className="text-[11px] text-rose-400 mt-1">{error}</p>}
@@ -981,4 +1036,3 @@ export function DropdownMenu({
     </div>
   );
 }
-
