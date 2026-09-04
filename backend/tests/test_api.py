@@ -80,9 +80,12 @@ def setup_api_test_db():
 
 def test_api_root():
     client = TestClient(app)
-    response = client.get("/")
+    response = client.get("/", headers={"Authorization": "Bearer must-not-leak"})
     assert response.status_code == 200
     assert response.json()["status"] == "online"
+    assert "headers" not in response.json()
+    assert "scope_path" not in response.json()
+    assert "must-not-leak" not in response.text
 
 def test_api_activate_and_validate_flow():
     client = TestClient(app)
@@ -133,3 +136,45 @@ def test_api_public_keys_keyring():
     assert key_entry["status"] == "active"
     assert len(key_entry["public_key_b64"]) > 0
 
+
+def test_authenticated_sync_ingestion_is_durable_and_idempotent():
+    client = TestClient(app)
+    activation = client.post("/license/activate", json={
+        "license_key": "ISTORE-TEST-KEY-001",
+        "machine_fingerprint": "MACH-SYNC-POS1",
+        "machine_name": "Sync Terminal",
+        "app_version": "1.0.0",
+    })
+    assert activation.status_code == 200
+    batch = {
+        "license_key": "ISTORE-TEST-KEY-001",
+        "machine_fingerprint": "MACH-SYNC-POS1",
+        "events": [{
+            "id": 41,
+            "uuid": "event-uuid-00000041",
+            "entity_type": "sale",
+            "entity_id": "INV-41",
+            "operation": "CREATE",
+            "payload": {"invoice_no": "INV-41", "total": 1500},
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }],
+    }
+    first = client.post("/api/sync/ingest", json=batch)
+    second = client.post("/api/sync/ingest", json=batch)
+    assert first.status_code == 200
+    assert first.json()["accepted_ids"] == [41]
+    assert second.status_code == 200
+    assert second.json()["duplicate_ids"] == [41]
+
+
+def test_sync_rejects_unlicensed_machine():
+    client = TestClient(app)
+    response = client.post("/api/sync/ingest", json={
+        "license_key": "ISTORE-TEST-KEY-001",
+        "machine_fingerprint": "MACH-NOT-ACTIVATED",
+        "events": [{
+            "id": 1, "uuid": "event-uuid-rejected-1", "entity_type": "sale",
+            "entity_id": "1", "operation": "CREATE", "payload": {},
+        }],
+    })
+    assert response.status_code == 403

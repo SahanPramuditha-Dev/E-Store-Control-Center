@@ -7,7 +7,7 @@ from sqlalchemy import func
 
 from app.database import get_db
 from app.models import AdminUser, AdminRole, AuditLog
-from app.auth import verify_password, hash_password, create_admin_token, get_current_admin
+from app.auth import verify_password, create_admin_token, get_current_admin
 
 
 router = APIRouter(prefix="/admin/auth", tags=["Admin Auth"])
@@ -53,31 +53,6 @@ def login_for_admin_token(
             (func.lower(AdminUser.email) == clean_user)
         ).first()
         
-        # Auto-seed initial super admins if database is brand new
-        if not user:
-            if clean_user in ["sahan", "sahanpramuditha91@gmail.com"] and password == "Sahan@910":
-                user = AdminUser(
-                    username="sahan",
-                    email="sahanpramuditha91@gmail.com",
-                    hashed_password=hash_password("Sahan@910"),
-                    role=AdminRole.SUPER_ADMIN,
-                    is_active=True
-                )
-                db.add(user)
-                db.commit()
-                db.refresh(user)
-            elif clean_user in ["admin", "admin@estore.lk"] and password == "Admin@1234":
-                user = AdminUser(
-                    username="admin",
-                    email="admin@estore.lk",
-                    hashed_password=hash_password("Admin@1234"),
-                    role=AdminRole.SUPER_ADMIN,
-                    is_active=True
-                )
-                db.add(user)
-                db.commit()
-                db.refresh(user)
-
         if not user or not verify_password(password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -98,11 +73,10 @@ def login_for_admin_token(
         )
     except HTTPException:
         raise
-    except Exception as e:
-        import traceback
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Login Error: {str(e)} | Trace: {traceback.format_exc()[-200:]}"
+            detail="Unable to complete login"
         )
 
 @router.post("/google", response_model=TokenResponse)
@@ -110,32 +84,9 @@ def google_auth_login(
     payload: GoogleLoginRequest,
     db: Session = Depends(get_db)
 ):
-    # Support Google sign-in for Sahan or admin
-    target_email = (payload.email or "sahanpramuditha91@gmail.com").strip().lower()
-    user = db.query(AdminUser).filter(func.lower(AdminUser.email) == target_email).first()
-
-    if not user:
-        # Auto-create user for verified Google authentication
-        user = AdminUser(
-            username=target_email.split("@")[0],
-            email=target_email,
-            hashed_password=hash_password("Sahan@910"),
-            role=AdminRole.SUPER_ADMIN,
-            is_active=True
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="Admin account is inactive.")
-
-    token = create_admin_token(data={"sub": user.username, "role": user.role.value})
-    return TokenResponse(
-        access_token=token,
-        username=user.username,
-        role=user.role.value
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Google sign-in is disabled until server-side ID-token verification is configured",
     )
 
 
@@ -214,4 +165,3 @@ def get_session_status(
             "brute_force_shield": True
         }
     }
-

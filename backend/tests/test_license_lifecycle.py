@@ -127,3 +127,54 @@ def test_full_license_and_payment_lifecycle(db_session):
     )
     assert val_success is True
     assert val_token is not None
+
+
+def test_expired_license_cannot_activate(db_session):
+    feature = Feature(code="pos", name="POS", is_active=True)
+    package = Package(code="EXPIRED", name="Expired", price_lkr=0)
+    package.features.append(feature)
+    tenant = Tenant(tenant_code="OLD", company_name="Old Shop", contact_name="Owner", phone="0")
+    db_session.add_all([feature, package, tenant])
+    db_session.flush()
+    shop = Shop(tenant_id=tenant.id, shop_code="OLD-1", shop_name="Old", city="Colombo")
+    db_session.add(shop)
+    db_session.flush()
+    now = datetime.now(timezone.utc)
+    license_obj = License(
+        license_key="ISTORE-EXPIRED", tenant_id=tenant.id, shop_id=shop.id, package_id=package.id,
+        license_type=LicenseType.ANNUAL, status=LicenseStatus.PENDING,
+        issued_at=now - timedelta(days=400), starts_at=now - timedelta(days=400),
+        expires_at=now - timedelta(days=1), max_machines=1,
+    )
+    db_session.add(license_obj)
+    db_session.commit()
+
+    success, message, token = LicenseService.activate_machine(db_session, "ISTORE-EXPIRED", "MACHINE", app_version="1.0.0")
+    assert success is False
+    assert "expired" in message.lower()
+    assert token is None
+
+
+def test_app_version_bounds_are_enforced(db_session):
+    feature = Feature(code="pos", name="POS", is_active=True)
+    package = Package(code="VERSIONED", name="Versioned", price_lkr=0)
+    package.features.append(feature)
+    tenant = Tenant(tenant_code="VER", company_name="Version Shop", contact_name="Owner", phone="0")
+    db_session.add_all([feature, package, tenant])
+    db_session.flush()
+    shop = Shop(tenant_id=tenant.id, shop_code="VER-1", shop_name="Version", city="Colombo")
+    db_session.add(shop)
+    db_session.flush()
+    now = datetime.now(timezone.utc)
+    license_obj = License(
+        license_key="ISTORE-VERSIONED", tenant_id=tenant.id, shop_id=shop.id, package_id=package.id,
+        license_type=LicenseType.ANNUAL, status=LicenseStatus.PENDING,
+        issued_at=now, starts_at=now - timedelta(minutes=1), expires_at=now + timedelta(days=30),
+        min_app_version="2.0.0", max_app_version="2.9.9", max_machines=1,
+    )
+    db_session.add(license_obj)
+    db_session.commit()
+
+    success, message, _ = LicenseService.activate_machine(db_session, "ISTORE-VERSIONED", "MACHINE", app_version="1.9.9")
+    assert success is False
+    assert "below minimum" in message

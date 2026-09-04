@@ -1,51 +1,42 @@
-import sys
-from app.database import engine, SessionLocal, Base
-from app.models import AdminUser, AdminRole
-from app.auth import hash_password
+"""Create or update one administrator from environment variables."""
 
-def seed_admin_user():
-    print("👤 Seeding Administrator Accounts...")
+import os
+
+from app.auth import hash_password
+from app.database import Base, SessionLocal, engine
+from app.models import AdminRole, AdminUser
+
+
+def seed_admin_user() -> None:
+    username = os.getenv("ADMIN_USERNAME", "").strip()
+    password = os.getenv("ADMIN_PASSWORD", "")
+    email = os.getenv("ADMIN_EMAIL", "").strip().lower()
+    if not username or not password:
+        raise RuntimeError("ADMIN_USERNAME and ADMIN_PASSWORD are required")
+    if len(password) < 10:
+        raise RuntimeError("ADMIN_PASSWORD must contain at least 10 characters")
+    if not email:
+        email = f"{username.lower()}@estore.local"
+
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
-
-    # 1. Super Admin Sahan
-    sahan = db.query(AdminUser).filter(
-        (AdminUser.username == "sahan") | (AdminUser.email == "sahanpramuditha91@gmail.com")
-    ).first()
-    if not sahan:
-        sahan = AdminUser(
-            username="sahan",
-            email="sahanpramuditha91@gmail.com",
-            hashed_password=hash_password("Sahan@910"),
-            role=AdminRole.SUPER_ADMIN,
-            is_active=True
-        )
-        db.add(sahan)
-    else:
-        sahan.username = "sahan"
-        sahan.email = "sahanpramuditha91@gmail.com"
-        sahan.hashed_password = hash_password("Sahan@910")
-        sahan.role = AdminRole.SUPER_ADMIN
-        sahan.is_active = True
-
-    # 2. Master Admin
-    admin = db.query(AdminUser).filter(AdminUser.username == "admin").first()
-    if not admin:
-        admin = AdminUser(
-            username="admin",
-            email="admin@estore.lk",
-            hashed_password=hash_password("Admin@1234"),
-            role=AdminRole.SUPER_ADMIN,
-            is_active=True
-        )
-        db.add(admin)
-    else:
-        admin.hashed_password = hash_password("Admin@1234")
+    try:
+        admin = db.query(AdminUser).filter(
+            (AdminUser.username == username) | (AdminUser.email == email)
+        ).first()
+        if admin is None:
+            admin = AdminUser(username=username, email=email)
+            db.add(admin)
+        admin.username = username
+        admin.email = email
+        admin.hashed_password = hash_password(password)
+        admin.role = AdminRole.SUPER_ADMIN
         admin.is_active = True
+        db.commit()
+        print(f"Administrator '{username}' is ready.")
+    finally:
+        db.close()
 
-    db.commit()
-    print("✅ Super Admin Sahan & Admin seeded successfully.")
-    db.close()
 
 if __name__ == "__main__":
     seed_admin_user()

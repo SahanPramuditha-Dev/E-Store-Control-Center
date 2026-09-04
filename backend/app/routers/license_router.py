@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.licensing.service import LicenseService
 from app.licensing.payload import SignedLicenseToken
+from app.auth import get_current_admin
 
 router = APIRouter(prefix="/license", tags=["License"])
 
@@ -60,7 +61,8 @@ class TransferRequest(BaseModel):
 def transfer_machine_binding(
     req: TransferRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin = Depends(get_current_admin),
 ):
     ip_addr = request.client.host if request.client else None
     success, msg, token = LicenseService.transfer_machine(
@@ -120,4 +122,3 @@ def get_public_keys():
             }
         ]
     }
-

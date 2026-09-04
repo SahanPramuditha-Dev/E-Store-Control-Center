@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from app.config import settings
 from app.database import engine, Base, get_db
 import app.models
-from app.routers import license_router, admin_auth_router, admin_management_router
+from app.routers import license_router, admin_auth_router, admin_management_router, client_sync_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -19,11 +19,9 @@ app = FastAPI(
 
 @app.on_event("startup")
 def on_startup():
-    if settings.DATABASE_URL.startswith("sqlite"):
-        try:
-            Base.metadata.create_all(bind=engine)
-        except Exception:
-            pass
+    # Create missing tables on both SQLite development and persistent PostgreSQL.
+    # Existing tables are never altered here; schema changes still use the migration script.
+    Base.metadata.create_all(bind=engine)
 
 # Gzip Response Compression (75-85% smaller payloads)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -61,20 +59,14 @@ class VercelPathFixMiddleware:
 
 app.add_middleware(VercelPathFixMiddleware)
 
-allowed_origins = [
-    "https://e-store-control-center-frontend.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?",
+    allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=(
+        r"http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?"
+        if settings.ENV != "production"
+        else None
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -96,9 +88,12 @@ async def add_security_headers(request, call_next):
 
 # License & Client Facing Endpoints
 app.include_router(license_router.router)
+app.include_router(client_sync_router.router)
 
-@app.api_route("/debug-headers", methods=["GET", "POST"])
+@app.api_route("/debug-headers", methods=["GET", "POST"], include_in_schema=False)
 def debug_headers(request: Request):
+    if settings.ENV == "production":
+        raise HTTPException(status_code=404, detail="Not found")
     return {
         "path": request.scope.get("path"),
         "raw_path": request.scope.get("raw_path", b"").decode("utf-8", errors="ignore"),
@@ -110,15 +105,12 @@ app.include_router(admin_auth_router.router)
 app.include_router(admin_management_router.router)
 
 @app.get("/")
-def root(request: Request):
-    headers_dict = {k.decode("utf-8", errors="ignore"): v.decode("utf-8", errors="ignore") for k, v in request.scope.get("headers", [])}
+def root():
     return {
         "status": "online",
         "service": settings.PROJECT_NAME,
         "schema_version": settings.CURRENT_LICENSE_SCHEMA_VERSION,
         "docs_url": "/docs",
-        "scope_path": request.scope.get("path"),
-        "headers": headers_dict
     }
 
 @app.get("/api/health")
@@ -129,8 +121,10 @@ def health_check():
         "schema_version": settings.CURRENT_LICENSE_SCHEMA_VERSION
     }
 
-@app.get("/api/debug-info")
+@app.get("/api/debug-info", include_in_schema=False)
 def debug_info():
+    if settings.ENV == "production":
+        raise HTTPException(status_code=404, detail="Not found")
     import sys, os, traceback
     info = {
         "python_version": sys.version,

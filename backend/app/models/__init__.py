@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, ForeignKey, Table, Text, Float, Enum, JSON, Index
+    Column, Integer, String, Boolean, DateTime, ForeignKey, Table, Text, Float, Enum, JSON, Index, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -285,6 +285,30 @@ class Machine(Base):
     activations = relationship("Activation", back_populates="machine")
 
 
+class ClientSyncEvent(Base):
+    """Immutable, idempotent copy of a mutation received from a licensed desktop."""
+    __tablename__ = "client_sync_events"
+    __table_args__ = (
+        UniqueConstraint("event_uuid", name="uq_client_sync_events_uuid"),
+        Index("idx_client_sync_tenant_created", "tenant_id", "created_at"),
+        Index("idx_client_sync_shop_entity", "shop_id", "entity_type", "entity_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_uuid = Column(String(64), nullable=False)
+    source_event_id = Column(Integer, nullable=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    shop_id = Column(Integer, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False)
+    license_id = Column(Integer, ForeignKey("licenses.id", ondelete="CASCADE"), nullable=False)
+    machine_id = Column(Integer, ForeignKey("machines.id", ondelete="CASCADE"), nullable=False)
+    entity_type = Column(String(80), nullable=False)
+    entity_id = Column(String(120), nullable=False)
+    operation = Column(String(16), nullable=False)
+    payload_json = Column(JSON, nullable=False)
+    source_created_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+
+
 class LicenseEvent(Base):
     __tablename__ = "license_events"
 
@@ -506,6 +530,5 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=utcnow, nullable=False)
 
     admin_user = relationship("AdminUser")
-
 
 

@@ -31,7 +31,7 @@ class LicenseVerifier:
             canonical_bytes = canonicalize_bytes(signed_token.payload.model_dump())
             public_key.verify(sig_bytes, canonical_bytes)
             return True, "Signature valid"
-        except InvalidSignature:
+        except (InvalidSignature, ValueError):
             return False, "Invalid signature: Payload has been tampered with"
         except Exception as e:
             return False, f"Signature verification error: {str(e)}"

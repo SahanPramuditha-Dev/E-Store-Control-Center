@@ -10,6 +10,42 @@ from app.licensing.payload import LicensePayload, SignedLicenseToken
 from app.licensing.signer import LicenseSigner
 from app.licensing.verifier import LicenseVerifier
 
+
+def _version_tuple(value: Optional[str]) -> tuple[int, ...]:
+    """Parse ordinary dotted app versions without adding a runtime dependency."""
+    if not value:
+        return ()
+    cleaned = str(value).strip().lower().lstrip("v").split("-", 1)[0]
+    try:
+        return tuple(int(part) for part in cleaned.split("."))
+    except ValueError:
+        return ()
+
+
+def _license_policy_error(license_obj: License, app_version: Optional[str]) -> Optional[str]:
+    now = datetime.now(timezone.utc)
+    starts_at = license_obj.starts_at
+    expires_at = license_obj.expires_at
+    if starts_at and starts_at.tzinfo is None:
+        starts_at = starts_at.replace(tzinfo=timezone.utc)
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if starts_at and now < starts_at:
+        return "License is not yet active"
+    if license_obj.license_type.value != "LIFETIME" and expires_at and now > expires_at:
+        return f"License expired on {expires_at.isoformat()}"
+
+    current = _version_tuple(app_version)
+    minimum = _version_tuple(license_obj.min_app_version)
+    maximum = _version_tuple(license_obj.max_app_version)
+    if (minimum or maximum) and not current:
+        return "A valid app version is required for this license"
+    if minimum and current < minimum:
+        return f"App version {app_version} is below minimum {license_obj.min_app_version}"
+    if maximum and current > maximum:
+        return f"App version {app_version} is above maximum {license_obj.max_app_version}"
+    return None
+
 def utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -84,6 +120,10 @@ class LicenseService:
 
         if license_obj.status in [LicenseStatus.REVOKED, LicenseStatus.SUSPENDED]:
             return False, f"License is {license_obj.status.value}. Activation prohibited.", None
+
+        policy_error = _license_policy_error(license_obj, app_version)
+        if policy_error:
+            return False, policy_error, None
 
         now = datetime.now(timezone.utc)
 
@@ -182,6 +222,10 @@ class LicenseService:
         if license_obj.status in [LicenseStatus.REVOKED, LicenseStatus.SUSPENDED]:
             return False, f"License is {license_obj.status.value}", None
 
+        policy_error = _license_policy_error(license_obj, app_version)
+        if policy_error:
+            return False, policy_error, None
+
         # Check if machine is bound and active
         machine = db.query(Machine).filter(
             Machine.license_id == license_obj.id,
@@ -236,6 +280,10 @@ class LicenseService:
 
         if license_obj.status in [LicenseStatus.REVOKED, LicenseStatus.SUSPENDED]:
             return False, f"License is {license_obj.status.value}. Transfer prohibited.", None
+
+        policy_error = _license_policy_error(license_obj, app_version)
+        if policy_error:
+            return False, policy_error, None
 
         if license_obj.replacement_count >= license_obj.replacement_limit:
             return False, f"Machine transfer limit reached ({license_obj.replacement_limit} replacements allowed). Please contact support to reset quota.", None

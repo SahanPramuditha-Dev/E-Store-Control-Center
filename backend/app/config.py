@@ -43,6 +43,7 @@ def get_clean_database_url() -> str:
     return raw_url
 
 class Settings:
+    ENV: str = os.getenv("ENV", "development").strip().lower()
     PROJECT_NAME: str = os.getenv("PROJECT_NAME", "E-Store License Platform")
     API_V1_STR: str = "/api/v1"
     
@@ -50,8 +51,9 @@ class Settings:
     DATABASE_URL: str = get_clean_database_url()
     
     # Cryptography - Ed25519 Keys
-    ED25519_PRIVATE_KEY_B64: Optional[str] = os.getenv("ED25519_PRIVATE_KEY_B64", None)
-    ED25519_PUBLIC_KEY_B64: Optional[str] = os.getenv("ED25519_PUBLIC_KEY_B64", None)
+    # Accept the legacy LICENSE_* names so existing deployment templates keep working.
+    ED25519_PRIVATE_KEY_B64: Optional[str] = os.getenv("ED25519_PRIVATE_KEY_B64") or os.getenv("LICENSE_PRIVATE_KEY_B64")
+    ED25519_PUBLIC_KEY_B64: Optional[str] = os.getenv("ED25519_PUBLIC_KEY_B64") or os.getenv("LICENSE_PUBLIC_KEY_B64")
     
     # Admin Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production-123456789")
@@ -61,5 +63,27 @@ class Settings:
     # License Schema
     CURRENT_LICENSE_SCHEMA_VERSION: int = 1
     DEFAULT_GRACE_PERIOD_DAYS: int = 14
+    CORS_ORIGINS: list[str] = [
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            "https://e-store-control-center-frontend.vercel.app"
+            if ENV == "production"
+            else "http://localhost:5173,http://localhost:3000,http://localhost:8000,http://127.0.0.1:5173,http://127.0.0.1:3000,http://127.0.0.1:8000",
+        ).split(",")
+        if origin.strip()
+    ]
+
+    @classmethod
+    def validate_production(cls) -> None:
+        if cls.ENV != "production":
+            return
+        if not cls.ED25519_PRIVATE_KEY_B64 or not cls.ED25519_PUBLIC_KEY_B64:
+            raise RuntimeError("Production Ed25519 signing keys are required")
+        if cls.SECRET_KEY == "dev-secret-key-change-in-production-123456789" or len(cls.SECRET_KEY) < 32:
+            raise RuntimeError("Production SECRET_KEY must be a strong non-default value")
+        if cls.DATABASE_URL.startswith("sqlite"):
+            raise RuntimeError("Production license service requires a persistent database")
 
 settings = Settings()
+settings.validate_production()
