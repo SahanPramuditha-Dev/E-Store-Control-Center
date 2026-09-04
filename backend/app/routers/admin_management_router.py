@@ -24,6 +24,23 @@ from app.licensing.service import LicenseService
 
 router = APIRouter(prefix="/admin", tags=["Admin Management"])
 
+PACKAGE_DEFAULT_FEATURES = {
+    "FREE": {"core_pos", "inventory"},
+    "STARTER": {"core_pos", "inventory", "smart_sms"},
+    "BUSINESS": {"core_pos", "inventory", "repairs", "multi_branch", "smart_sms"},
+    "BUSINESS_AI": {"core_pos", "inventory", "repairs", "multi_branch", "smart_sms", "bi_analytics", "ai_assistant", "developer_api"},
+    "ENTERPRISE": {"core_pos", "inventory", "repairs", "multi_branch", "smart_sms", "bi_analytics", "ai_assistant", "developer_api"},
+}
+
+
+def _ensure_default_package_features(db: Session, package: Package) -> None:
+    """Prevent newly auto-created commercial plans from issuing empty tokens."""
+    expected = PACKAGE_DEFAULT_FEATURES.get((package.code or "").strip().upper())
+    if not expected or package.features:
+        return
+    package.features = db.query(Feature).filter(Feature.code.in_(expected), Feature.is_active.is_(True)).all()
+    db.flush()
+
 
 # --- Pydantic Schemas ---
 class TenantCreate(BaseModel):
@@ -777,6 +794,8 @@ def issue_license(
         db.commit()
         db.refresh(pkg)
 
+    _ensure_default_package_features(db, pkg)
+
     if not tenant:
         raise HTTPException(status_code=404, detail=f"Tenant with ID {req.tenant_id} not found")
     if not shop:
@@ -1265,6 +1284,8 @@ def rapid_onboard(
         db.add(pkg)
         db.flush()
 
+    _ensure_default_package_features(db, pkg)
+
     # 4. Generate License
     key_prefix = f"ISTORE-{pkg.code}"
     random_part = uuid.uuid4().hex[:12].upper()
@@ -1527,6 +1548,8 @@ def rapid_onboard(
         pkg = Package(code=clean_pkg_code, name=name, price_lkr=price, is_active=True)
         db.add(pkg)
         db.flush()
+
+    _ensure_default_package_features(db, pkg)
 
     # 4. Generate License
     key_prefix = f"ISTORE-{pkg.code}"
@@ -2360,5 +2383,4 @@ def update_tenant_capabilities(
         "re_signed_licenses_count": len(re_signed_tokens),
         "re_signed_tokens": re_signed_tokens
     }
-
 

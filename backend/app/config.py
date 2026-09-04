@@ -43,7 +43,7 @@ def get_clean_database_url() -> str:
     return raw_url
 
 class Settings:
-    ENV: str = os.getenv("ENV", "development").strip().lower()
+    ENV: str = os.getenv("ENV", "production" if os.getenv("VERCEL") else "development").strip().lower()
     PROJECT_NAME: str = os.getenv("PROJECT_NAME", "E-Store License Platform")
     API_V1_STR: str = "/api/v1"
     

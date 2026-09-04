@@ -16,7 +16,7 @@ class SyncEventInput(BaseModel):
     uuid: str = Field(min_length=8, max_length=64)
     entity_type: str = Field(min_length=1, max_length=80)
     entity_id: str = Field(min_length=1, max_length=120)
-    operation: str = Field(pattern="^(CREATE|UPDATE|DELETE)$")
+    operation: str = Field(pattern="^(CREATE|UPDATE|DELETE|UPSERT)$")
     payload: dict[str, Any]
     created_at: datetime | None = None
 
