@@ -437,6 +437,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     value={formData.industry_code || 'MOBILE_RETAIL'}
                     onChange={(val) => setFormData(prev => ({ ...prev, industry_code: val }))}
                     options={INDUSTRY_OPTIONS}
+                    placement="top"
                   />
                 </div>
               </div>
@@ -503,6 +504,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     }));
                   }}
                   options={PACKAGE_OPTIONS}
+                  placement="top"
                 />
                 <CentralSelect
                   label="License Duration / Type"
@@ -518,6 +520,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     }));
                   }}
                   options={LICENSE_TYPE_OPTIONS}
+                  placement="top"
                 />
                 <div>
                   <label className="text-xs text-slate-300 font-semibold block mb-1.5">Max Authorized Terminals (PCs)</label>
@@ -576,6 +579,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                   value={formData.payment_method}
                   onChange={(val) => setFormData(prev => ({ ...prev, payment_method: val }))}
                   options={PAYMENT_METHOD_OPTIONS}
+                  placement="top"
                 />
                 <div className="col-span-2">
                   <label className="text-xs text-slate-300 font-semibold block mb-1.5">Payment Reference / Cheque No</label>
@@ -695,4 +699,3 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
     </div>
   );
 }
-
