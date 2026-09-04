@@ -59,9 +59,13 @@ class VercelPathFixMiddleware:
 
 app.add_middleware(VercelPathFixMiddleware)
 
+allowed_origins = sorted(set(settings.CORS_ORIGINS) | {
+    "https://e-store-control-center-frontend.vercel.app",
+})
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=allowed_origins,
     allow_origin_regex=(
         r"http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?"
         if settings.ENV != "production"

@@ -87,6 +87,22 @@ def test_api_root():
     assert "scope_path" not in response.json()
     assert "must-not-leak" not in response.text
 
+
+def test_production_frontend_cors_preflight():
+    client = TestClient(app)
+    response = client.options(
+        "/admin/auth/login",
+        headers={
+            "Origin": "https://e-store-control-center-frontend.vercel.app",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == (
+        "https://e-store-control-center-frontend.vercel.app"
+    )
+
 def test_api_activate_and_validate_flow():
     client = TestClient(app)
 
