@@ -9,6 +9,7 @@ from app.models import (
     LicenseEvent, LicenseStatus, LicenseType, LicenseEventType, Payment, PaymentType
 )
 from app.licensing.service import LicenseService
+from app.package_catalog import normalize_entitlements
 
 @pytest.fixture
 def db_session():
@@ -31,6 +32,12 @@ def test_legacy_business_ai_package_receives_documented_entitlements(db_session)
         "core_pos", "inventory", "repairs", "multi_branch", "smart_sms",
         "bi_analytics", "ai_assistant", "developer_api",
     }
+
+
+def test_legacy_entitlement_codes_are_normalized():
+    assert set(normalize_entitlements([
+        "pos", "grn", "warranty", "whatsapp_bot", "advanced_reports", "ai_analytics"
+    ])) == {"core_pos", "inventory", "repairs", "smart_sms", "bi_analytics"}
 
 def test_full_license_and_payment_lifecycle(db_session):
     # 1. Create Features

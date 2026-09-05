@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   Building2, Store, Key, CreditCard, CheckCircle2, 
   Copy, Download, X, ArrowRight, ArrowLeft, Loader2, Sparkles, RefreshCw,
@@ -70,6 +70,7 @@ const INDUSTRY_OPTIONS = [
 const PACKAGE_OPTIONS = [
   {
     value: 'STARTER',
+    price_lkr: 35000,
     label: 'Starter Retail Plan (Rs 35,000)',
     desc: 'Single terminal basic inventory & POS',
     icon: Zap,
@@ -79,6 +80,7 @@ const PACKAGE_OPTIONS = [
   },
   {
     value: 'BUSINESS',
+    price_lkr: 95000,
     label: 'Business Pro Plan (Rs 95,000)',
     desc: 'Multi-device & full industry workflows',
     icon: Crown,
@@ -88,6 +90,7 @@ const PACKAGE_OPTIONS = [
   },
   {
     value: 'BUSINESS_AI',
+    price_lkr: 145000,
     label: 'iStore Business AI (Rs 145,000)',
     desc: 'AI forecasting, demand & smart ledger',
     icon: Sparkles,
@@ -97,6 +100,7 @@ const PACKAGE_OPTIONS = [
   },
   {
     value: 'ENTERPRISE',
+    price_lkr: 250000,
     label: 'Enterprise AI Suite (Rs 250,000)',
     desc: 'Multi-branch warehouse & unlimited seats',
     icon: Shield,
@@ -181,6 +185,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [availablePackages, setAvailablePackages] = useState([]);
 
   const [formData, setFormData] = useState({
     // Tenant
@@ -206,6 +211,34 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
     payment_reference: '',
   });
 
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    api.get('/admin/packages').then((res) => {
+      if (active) setAvailablePackages((res.data?.packages || []).filter((pkg) => pkg.code !== 'RETAIL'));
+    }).catch(() => {
+      if (active) setAvailablePackages([]);
+    });
+    return () => { active = false; };
+  }, [isOpen]);
+
+  const packageOptions = useMemo(() => {
+    if (!availablePackages.length) return PACKAGE_OPTIONS;
+    return availablePackages.map((pkg) => ({
+      value: pkg.code,
+      label: `${pkg.name} (Rs ${Number(pkg.price_lkr || 0).toLocaleString()})`,
+      desc: pkg.description || `${pkg.max_devices || 1} device(s), ${pkg.max_stores || 1} store(s)`,
+      icon: pkg.code === 'BUSINESS_AI' ? Sparkles : pkg.code === 'ENTERPRISE' ? Shield : pkg.code === 'BUSINESS' ? Crown : Zap,
+      color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/25',
+      price_lkr: Number(pkg.price_lkr || 0),
+    }));
+  }, [availablePackages]);
+
+  const packagePrices = useMemo(
+    () => Object.fromEntries(packageOptions.map((pkg) => [pkg.value, Number(pkg.price_lkr ?? availablePackages.find((row) => row.code === pkg.value)?.price_lkr ?? 0)])),
+    [packageOptions, availablePackages]
+  );
+
   if (!isOpen) return null;
 
   const handleChange = (e) => {
@@ -215,14 +248,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
 
       // Only update the direct field being edited, do not overwrite tenant_code or shop_code
       if (name === 'package_code') {
-        const prices = {
-          STARTER: 35000,
-          BUSINESS: 95000,
-          ENTERPRISE: 250000,
-          RETAIL: 55000,
-          BUSINESS_AI: 145000
-        };
-        updated.payment_amount = prices[value] || 0;
+        updated.payment_amount = packagePrices[value] || 0;
       }
       if (name === 'license_type') {
         if (value === 'TRIAL') updated.validity_days = 14;
@@ -490,20 +516,13 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                   label="Software Package Tier"
                   value={formData.package_code}
                   onChange={(val) => {
-                    const prices = {
-                      STARTER: 35000,
-                      BUSINESS: 95000,
-                      ENTERPRISE: 250000,
-                      RETAIL: 55000,
-                      BUSINESS_AI: 145000
-                    };
                     setFormData(prev => ({
                       ...prev,
                       package_code: val,
-                      payment_amount: prices[val] || 0
+                      payment_amount: packagePrices[val] || 0
                     }));
                   }}
-                  options={PACKAGE_OPTIONS}
+                  options={packageOptions}
                   placement="auto"
                 />
                 <CentralSelect

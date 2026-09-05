@@ -20,17 +20,12 @@ from app.models import (
 )
 from app.auth import get_current_admin, require_role, create_impersonation_token
 from app.licensing.service import LicenseService
+from app.package_catalog import CANONICAL_ENTITLEMENTS, PACKAGE_CATALOG
 
 
 router = APIRouter(prefix="/admin", tags=["Admin Management"])
 
-PACKAGE_DEFAULT_FEATURES = {
-    "FREE": {"core_pos", "inventory"},
-    "STARTER": {"core_pos", "inventory", "smart_sms"},
-    "BUSINESS": {"core_pos", "inventory", "repairs", "multi_branch", "smart_sms"},
-    "BUSINESS_AI": {"core_pos", "inventory", "repairs", "multi_branch", "smart_sms", "bi_analytics", "ai_assistant", "developer_api"},
-    "ENTERPRISE": {"core_pos", "inventory", "repairs", "multi_branch", "smart_sms", "bi_analytics", "ai_assistant", "developer_api"},
-}
+PACKAGE_DEFAULT_FEATURES = {code: set(value["entitlements"]) for code, value in PACKAGE_CATALOG.items()}
 
 
 def _ensure_default_package_features(db: Session, package: Package) -> None:
@@ -620,6 +615,19 @@ def create_shop(
     existing = db.query(Shop).filter(Shop.shop_code == req.shop_code).first()
     if existing:
         raise HTTPException(status_code=400, detail="Shop code already exists")
+
+    active_license = db.query(License).filter(
+        License.tenant_id == tenant.id,
+        License.status == LicenseStatus.ACTIVE,
+    ).order_by(desc(License.created_at)).first()
+    if active_license and active_license.package:
+        current_shop_count = db.query(Shop).filter(Shop.tenant_id == tenant.id).count()
+        max_stores = max(1, int(active_license.package.max_stores or 1))
+        if current_shop_count >= max_stores:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Package store limit reached ({max_stores}). Existing stores were not changed.",
+            )
     
     shop = Shop(
         tenant_id=req.tenant_id,
@@ -649,7 +657,13 @@ def list_packages(db: Session = Depends(get_db), admin: AdminUser = Depends(get_
                 "name": p.name,
                 "description": p.description,
                 "price_lkr": p.price_lkr,
-                "features": [f.code for f in p.features]
+                "max_users": p.max_users,
+                "max_devices": p.max_devices,
+                "max_stores": p.max_stores,
+                "storage_gb": p.storage_gb,
+                "monthly_transactions_limit": p.monthly_transactions_limit,
+                "reports_tier": p.reports_tier,
+                "features": LicenseService.get_package_features(db, p)
             } for p in packages
         ],
         "all_features": [
@@ -658,7 +672,7 @@ def list_packages(db: Session = Depends(get_db), admin: AdminUser = Depends(get_
                 "code": f.code,
                 "name": f.name,
                 "description": f.description
-            } for f in all_features
+            } for f in all_features if f.code in CANONICAL_ENTITLEMENTS
         ]
     }
 
@@ -2383,4 +2397,3 @@ def update_tenant_capabilities(
         "re_signed_licenses_count": len(re_signed_tokens),
         "re_signed_tokens": re_signed_tokens
     }
-

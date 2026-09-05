@@ -1,14 +1,16 @@
 from datetime import datetime, timezone
 from typing import List, Tuple, Optional
+import hashlib
 from sqlalchemy.orm import Session
 
 from app.models import (
     Tenant, Shop, Package, Feature, License, Machine, Activation,
-    LicenseEvent, LicenseStatus, LicenseEventType, MachineStatus
+    LicenseEvent, LicenseStatus, LicenseEventType, MachineStatus, FeatureFlag
 )
 from app.licensing.payload import LicensePayload, SignedLicenseToken
 from app.licensing.signer import LicenseSigner
 from app.licensing.verifier import LicenseVerifier
+from app.package_catalog import PACKAGE_CATALOG, normalize_entitlements
 
 
 def _version_tuple(value: Optional[str]) -> tuple[int, ...]:
@@ -50,10 +52,6 @@ def utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 class LicenseService:
-    BUSINESS_AI_DEFAULT_ENTITLEMENTS = [
-        "core_pos", "inventory", "repairs", "multi_branch", "smart_sms",
-        "bi_analytics", "ai_assistant", "developer_api",
-    ]
     """
     Central orchestration service for creating, activating, renewing,
     suspending, and validating client licenses.
@@ -61,14 +59,29 @@ class LicenseService:
 
     @classmethod
     def get_package_features(cls, db: Session, package: Package) -> List[str]:
-        configured = [f.code for f in package.features if f.is_active]
+        configured = normalize_entitlements(f.code for f in package.features if f.is_active)
         if configured:
             return configured
-        # Restore the documented feature set for legacy BUSINESS_AI records
-        # that were created before package-feature rows were populated.
-        if (package.code or "").strip().upper() == "BUSINESS_AI":
-            return list(cls.BUSINESS_AI_DEFAULT_ENTITLEMENTS)
-        return []
+        definition = PACKAGE_CATALOG.get((package.code or "").strip().upper())
+        return sorted(definition["entitlements"]) if definition else []
+
+    @classmethod
+    def get_runtime_feature_flags(cls, db: Session, tenant: Tenant, package: Package) -> List[str]:
+        enabled = []
+        package_code = (package.code or "").strip().upper()
+        tenant_code = (tenant.tenant_code or "").strip().upper()
+        for flag in db.query(FeatureFlag).filter(FeatureFlag.is_enabled.is_(True)).all():
+            target_plans = {str(value).strip().upper() for value in (flag.target_plans_json or [])}
+            target_orgs = {str(value).strip().upper() for value in (flag.target_orgs_json or [])}
+            if target_plans and package_code not in target_plans:
+                continue
+            if target_orgs and tenant_code not in target_orgs:
+                continue
+            rollout = max(0, min(100, int(flag.rollout_percentage or 0)))
+            bucket = int(hashlib.sha256(f"{tenant_code}:{flag.code}".encode()).hexdigest()[:8], 16) % 100
+            if bucket < rollout:
+                enabled.append(flag.code)
+        return sorted(enabled)
 
     @classmethod
     def generate_signed_token_for_license(
@@ -93,6 +106,12 @@ class LicenseService:
             industry_code=cap_res["industry_code"],
             capabilities=enabled_caps,
             configuration_version=cap_res["configuration_version"],
+            max_users=max(1, int(license_obj.package.max_users or 1)),
+            max_devices=max(1, int(license_obj.package.max_devices or license_obj.max_machines or 1)),
+            max_stores=max(1, int(license_obj.package.max_stores or 1)),
+            storage_gb=max(0.1, float(license_obj.package.storage_gb or 10.0)),
+            monthly_transactions_limit=max(1, int(license_obj.package.monthly_transactions_limit or 10000)),
+            feature_flags=cls.get_runtime_feature_flags(db, license_obj.tenant, license_obj.package),
             license_type=license_obj.license_type.value,
             issued_at=license_obj.issued_at.isoformat().replace("+00:00", "Z") if license_obj.issued_at else utcnow_iso(),
             starts_at=license_obj.starts_at.isoformat().replace("+00:00", "Z") if license_obj.starts_at else utcnow_iso(),

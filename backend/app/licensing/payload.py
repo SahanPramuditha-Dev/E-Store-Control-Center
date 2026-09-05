@@ -16,6 +16,12 @@ class LicensePayload(BaseModel):
     industry_code: str = Field(default="MOBILE_RETAIL", description="Industry template code")
     capabilities: List[str] = Field(default_factory=list, description="Resolved enabled capability keys")
     configuration_version: int = Field(default=1, description="Tenant configuration version")
+    max_users: int = Field(default=5, ge=1, description="Maximum active users")
+    max_devices: int = Field(default=1, ge=1, description="Maximum activated devices")
+    max_stores: int = Field(default=1, ge=1, description="Maximum organization stores")
+    storage_gb: float = Field(default=10.0, gt=0, description="Licensed storage allowance")
+    monthly_transactions_limit: int = Field(default=10000, ge=1, description="Monthly transaction allowance")
+    feature_flags: List[str] = Field(default_factory=list, description="Enabled runtime rollout flags")
     machine_fingerprint: str = Field(description="Hardware binding fingerprint")
     grace_period_days: int = Field(default=14, description="Allowed offline duration before online check is forced")
     min_app_version: Optional[str] = Field(default=None, description="Minimum supported client version")
@@ -27,4 +33,3 @@ class SignedLicenseToken(BaseModel):
     signature: str = Field(description="Base64 encoded Ed25519 digital signature of canonical payload")
     signature_algorithm: str = Field(default="Ed25519", description="Signature algorithm")
     key_id: str = Field(default="estore-root-2026-v1", description="Public key identifier used to verify signature")
-
