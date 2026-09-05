@@ -148,7 +148,7 @@ export default function SubscriptionsPage() {
                     <span className={`text-3xl font-black font-mono tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       {Number(pkg.price_lkr).toLocaleString()}
                     </span>
-                    <span className="text-xs text-slate-400 font-semibold">/ year</span>
+                    <span className="text-xs text-slate-400 font-semibold">/ month</span>
                   </div>
                 </div>
 
@@ -220,7 +220,7 @@ export default function SubscriptionsPage() {
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-300">Annual Price (LKR)</label>
+                <label className="block font-bold mb-1 text-slate-300">Monthly Price (LKR)</label>
                 <input
                   type="number"
                   required
@@ -231,9 +231,21 @@ export default function SubscriptionsPage() {
               </div>
 
               <div>
+                <label className="block font-bold mb-1 text-slate-300">Max Users</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editForm.max_users}
+                  onChange={(e) => setEditForm({ ...editForm, max_users: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border focus:outline-none bg-slate-950 border-slate-800 text-white focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
                 <label className="block font-bold mb-1 text-slate-300">Max Devices</label>
                 <input
                   type="number"
+                  min="1"
                   value={editForm.max_devices}
                   onChange={(e) => setEditForm({ ...editForm, max_devices: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border focus:outline-none bg-slate-950 border-slate-800 text-white focus:border-indigo-500"
@@ -244,6 +256,7 @@ export default function SubscriptionsPage() {
                 <label className="block font-bold mb-1 text-slate-300">Max Stores</label>
                 <input
                   type="number"
+                  min="1"
                   value={editForm.max_stores}
                   onChange={(e) => setEditForm({ ...editForm, max_stores: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border focus:outline-none bg-slate-950 border-slate-800 text-white focus:border-indigo-500"

@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 import time
 from typing import List, Optional, Dict, Any, Union, Tuple
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, text
 
@@ -102,7 +102,12 @@ class PaymentCreateRequest(BaseModel):
 class PackageUpdateRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    price_lkr: Optional[float] = None
+    price_lkr: Optional[float] = Field(default=None, ge=0)
+    max_users: Optional[int] = Field(default=None, ge=1)
+    max_devices: Optional[int] = Field(default=None, ge=1)
+    max_stores: Optional[int] = Field(default=None, ge=1)
+    storage_gb: Optional[float] = Field(default=None, gt=0)
+    monthly_transactions_limit: Optional[int] = Field(default=None, ge=1)
     feature_codes: Optional[List[str]] = None
 
 class OnboardingRequest(BaseModel):
@@ -695,6 +700,10 @@ def update_package(
         pkg.description = req.description
     if req.price_lkr is not None:
         pkg.price_lkr = req.price_lkr
+    for quota in ("max_users", "max_devices", "max_stores", "storage_gb", "monthly_transactions_limit"):
+        value = getattr(req, quota)
+        if value is not None:
+            setattr(pkg, quota, value)
     if req.feature_codes is not None:
         features = db.query(Feature).filter(Feature.code.in_(req.feature_codes)).all()
         pkg.features = features

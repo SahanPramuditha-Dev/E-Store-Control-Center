@@ -165,7 +165,7 @@ export default function PackagesPage() {
                     <span className={`text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       Rs {(pkg.price_lkr || 0).toLocaleString()}
                     </span>
-                    <span className={`text-xs ml-2 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>/ annual license</span>
+                    <span className={`text-xs ml-2 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>/ month</span>
                   </div>
 
                   <div className={`mt-6 pt-5 border-t space-y-2.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
@@ -225,7 +225,7 @@ export default function PackagesPage() {
               </div>
 
               <div>
-                <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Annual Price (LKR)</label>
+                <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Monthly Price (LKR)</label>
                 <input
                   type="number"
                   required

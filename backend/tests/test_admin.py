@@ -23,6 +23,7 @@ def override_get_db():
     finally:
         db.close()
 
+
 @pytest.fixture(autouse=True)
 def setup_admin_test_db():
     Base.metadata.create_all(bind=test_engine)
@@ -72,6 +73,26 @@ def test_admin_login_and_crud_flow():
     assert login_res.status_code == 200
     token = login_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+
+    package_list = client.get("/admin/packages", headers=headers)
+    assert package_list.status_code == 200
+    package_id = package_list.json()["packages"][0]["id"]
+    package_update = client.patch(f"/admin/packages/{package_id}", headers=headers, json={
+        "price_lkr": 1990,
+        "max_users": 7,
+        "max_devices": 3,
+        "max_stores": 2,
+        "storage_gb": 25,
+        "monthly_transactions_limit": 12000,
+    })
+    assert package_update.status_code == 200
+    updated_package = client.get("/admin/packages", headers=headers).json()["packages"][0]
+    assert updated_package["price_lkr"] == 1990
+    assert updated_package["max_users"] == 7
+    assert updated_package["max_devices"] == 3
+    assert updated_package["max_stores"] == 2
+    assert updated_package["storage_gb"] == 25
+    assert updated_package["monthly_transactions_limit"] == 12000
 
     # 2. Get Me
     me_res = client.get("/admin/auth/me", headers=headers)
@@ -216,5 +237,3 @@ def test_rbac_role_enforcement_and_impersonation_isolation():
     assert blocked_admin_call.status_code == 403
     assert "Support impersonation tokens cannot access" in blocked_admin_call.json()["detail"]
     db.close()
-
-
