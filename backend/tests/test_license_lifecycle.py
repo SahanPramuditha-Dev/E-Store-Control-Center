@@ -19,6 +19,19 @@ def db_session():
     yield session
     session.close()
 
+
+def test_legacy_business_ai_package_receives_documented_entitlements(db_session):
+    package = Package(code="BUSINESS_AI", name="Business AI", price_lkr=145000.0)
+    db_session.add(package)
+    db_session.flush()
+
+    entitlements = LicenseService.get_package_features(db_session, package)
+
+    assert set(entitlements) == {
+        "core_pos", "inventory", "repairs", "multi_branch", "smart_sms",
+        "bi_analytics", "ai_assistant", "developer_api",
+    }
+
 def test_full_license_and_payment_lifecycle(db_session):
     # 1. Create Features
     f_pos = Feature(code="pos", name="POS", is_active=True)

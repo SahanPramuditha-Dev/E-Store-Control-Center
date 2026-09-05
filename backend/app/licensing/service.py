@@ -50,6 +50,10 @@ def utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 class LicenseService:
+    BUSINESS_AI_DEFAULT_ENTITLEMENTS = [
+        "core_pos", "inventory", "repairs", "multi_branch", "smart_sms",
+        "bi_analytics", "ai_assistant", "developer_api",
+    ]
     """
     Central orchestration service for creating, activating, renewing,
     suspending, and validating client licenses.
@@ -57,7 +61,14 @@ class LicenseService:
 
     @classmethod
     def get_package_features(cls, db: Session, package: Package) -> List[str]:
-        return [f.code for f in package.features if f.is_active]
+        configured = [f.code for f in package.features if f.is_active]
+        if configured:
+            return configured
+        # Restore the documented feature set for legacy BUSINESS_AI records
+        # that were created before package-feature rows were populated.
+        if (package.code or "").strip().upper() == "BUSINESS_AI":
+            return list(cls.BUSINESS_AI_DEFAULT_ENTITLEMENTS)
+        return []
 
     @classmethod
     def generate_signed_token_for_license(
