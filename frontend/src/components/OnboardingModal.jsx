@@ -70,8 +70,8 @@ const INDUSTRY_OPTIONS = [
 const PACKAGE_OPTIONS = [
   {
     value: 'STARTER',
-    price_lkr: 35000,
-    label: 'Starter Retail Plan (Rs 35,000)',
+    price_lkr: 1990,
+    label: 'Starter Retail Plan (Rs 1,990/month)',
     desc: 'Single terminal basic inventory & POS',
     icon: Zap,
     color: 'text-amber-400',
@@ -80,8 +80,8 @@ const PACKAGE_OPTIONS = [
   },
   {
     value: 'BUSINESS',
-    price_lkr: 95000,
-    label: 'Business Pro Plan (Rs 95,000)',
+    price_lkr: 4990,
+    label: 'Business Pro Plan (Rs 4,990/month)',
     desc: 'Multi-device & full industry workflows',
     icon: Crown,
     color: 'text-indigo-400',
@@ -90,8 +90,8 @@ const PACKAGE_OPTIONS = [
   },
   {
     value: 'BUSINESS_AI',
-    price_lkr: 145000,
-    label: 'iStore Business AI (Rs 145,000)',
+    price_lkr: 7990,
+    label: 'E Store Business AI (Rs 7,990/month)',
     desc: 'AI forecasting, demand & smart ledger',
     icon: Sparkles,
     color: 'text-purple-400',
@@ -100,8 +100,8 @@ const PACKAGE_OPTIONS = [
   },
   {
     value: 'ENTERPRISE',
-    price_lkr: 250000,
-    label: 'Enterprise AI Suite (Rs 250,000)',
+    price_lkr: 9990,
+    label: 'Enterprise AI Suite (Rs 9,990/month)',
     desc: 'Multi-branch warehouse & unlimited seats',
     icon: Shield,
     color: 'text-indigo-400',
@@ -206,7 +206,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
     validity_days: 365,
     max_machines: 2,
     // Payment
-    payment_amount: 95000,
+    payment_amount: 49900,
     payment_method: 'BANK_TRANSFER',
     payment_reference: '',
   });
@@ -226,7 +226,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
     if (!availablePackages.length) return PACKAGE_OPTIONS;
     return availablePackages.map((pkg) => ({
       value: pkg.code,
-      label: `${pkg.name} (Rs ${Number(pkg.price_lkr || 0).toLocaleString()})`,
+      label: `${pkg.name} (Rs ${Number(pkg.price_lkr || 0).toLocaleString()}/month)`,
       desc: pkg.description || `${pkg.max_devices || 1} device(s), ${pkg.max_stores || 1} store(s)`,
       icon: pkg.code === 'BUSINESS_AI' ? Sparkles : pkg.code === 'ENTERPRISE' ? Shield : pkg.code === 'BUSINESS' ? Crown : Zap,
       color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/25',
@@ -239,6 +239,13 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
     [packageOptions, availablePackages]
   );
 
+  const calculatePayment = (packageCode, licenseType) => {
+    const monthly = packagePrices[packageCode] || 0;
+    if (licenseType === 'TRIAL') return 0;
+    if (licenseType === 'LIFETIME') return monthly * 36;
+    return monthly * 10;
+  };
+
   if (!isOpen) return null;
 
   const handleChange = (e) => {
@@ -248,12 +255,13 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
 
       // Only update the direct field being edited, do not overwrite tenant_code or shop_code
       if (name === 'package_code') {
-        updated.payment_amount = packagePrices[value] || 0;
+        updated.payment_amount = calculatePayment(value, updated.license_type);
       }
       if (name === 'license_type') {
         if (value === 'TRIAL') updated.validity_days = 14;
         else if (value === 'ANNUAL') updated.validity_days = 365;
         else if (value === 'LIFETIME') updated.validity_days = 3650;
+        updated.payment_amount = calculatePayment(updated.package_code, value);
       }
       return updated;
     });
@@ -519,7 +527,7 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     setFormData(prev => ({
                       ...prev,
                       package_code: val,
-                      payment_amount: packagePrices[val] || 0
+                      payment_amount: calculatePayment(val, prev.license_type)
                     }));
                   }}
                   options={packageOptions}
@@ -535,7 +543,8 @@ export default function OnboardingModal({ isOpen, onClose, onSuccess }) {
                     setFormData(prev => ({
                       ...prev,
                       license_type: val,
-                      validity_days: validity
+                      validity_days: validity,
+                      payment_amount: calculatePayment(prev.package_code, val)
                     }));
                   }}
                   options={LICENSE_TYPE_OPTIONS}

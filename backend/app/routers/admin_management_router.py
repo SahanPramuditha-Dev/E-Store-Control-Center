@@ -657,6 +657,8 @@ def list_packages(db: Session = Depends(get_db), admin: AdminUser = Depends(get_
                 "name": p.name,
                 "description": p.description,
                 "price_lkr": p.price_lkr,
+                "billing_period": "MONTHLY",
+                "annual_price_lkr": p.price_lkr * 10,
                 "max_users": p.max_users,
                 "max_devices": p.max_devices,
                 "max_stores": p.max_stores,
