@@ -26,6 +26,10 @@ def test_deterministic_canonicalization():
     assert canonicalize_json(dict1) == canonicalize_json(dict2)
     assert canonicalize_json(dict1) == '{"a":1,"b":2,"c":{"x":10,"y":20}}'
 
+
+def test_canonicalization_matches_javascript_number_format():
+    assert canonicalize_json({"storage_gb": 100.0, "ratio": 1.25}) == '{"ratio":1.25,"storage_gb":100}'
+
 def test_sign_and_verify_valid_token():
     private_key, public_key = KeyManager.generate_key_pair()
 
