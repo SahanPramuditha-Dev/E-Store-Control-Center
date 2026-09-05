@@ -139,6 +139,17 @@ def test_api_activate_invalid_key():
     assert res.status_code == 400
     assert "Invalid license key" in res.json()["detail"]
 
+
+def test_api_rejects_oversized_machine_fingerprint_before_database_write():
+    client = TestClient(app)
+    res = client.post("/license/activate", json={
+        "license_key": "ISTORE-TEST-KEY-001",
+        "machine_fingerprint": "M" * 101,
+        "machine_name": "Malformed diagnostic request",
+        "app_version": "1.0.0",
+    })
+    assert res.status_code == 422
+
 def test_api_public_keys_keyring():
     client = TestClient(app)
     res = client.get("/license/public-keys")

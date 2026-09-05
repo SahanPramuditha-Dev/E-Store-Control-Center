@@ -11,15 +11,15 @@ from app.auth import get_current_admin
 router = APIRouter(prefix="/license", tags=["License"])
 
 class ActivationRequest(BaseModel):
-    license_key: str = Field(..., example="ISTORE-BIZ-2026-0001")
-    machine_fingerprint: str = Field(..., example="MACH-8F92-A4C1-33D9")
-    machine_name: Optional[str] = Field(default="POS-Terminal-01")
-    app_version: Optional[str] = Field(default="1.0.0")
+    license_key: str = Field(..., min_length=1, max_length=100, example="ISTORE-BIZ-2026-0001")
+    machine_fingerprint: str = Field(..., min_length=8, max_length=100, example="MACH-8F92-A4C1-33D9")
+    machine_name: Optional[str] = Field(default="POS-Terminal-01", max_length=100)
+    app_version: Optional[str] = Field(default="1.0.0", max_length=30)
 
 class ValidationRequest(BaseModel):
-    license_key: str = Field(..., example="ISTORE-BIZ-2026-0001")
-    machine_fingerprint: str = Field(..., example="MACH-8F92-A4C1-33D9")
-    app_version: Optional[str] = Field(default="1.0.0")
+    license_key: str = Field(..., min_length=1, max_length=100, example="ISTORE-BIZ-2026-0001")
+    machine_fingerprint: str = Field(..., min_length=8, max_length=100, example="MACH-8F92-A4C1-33D9")
+    app_version: Optional[str] = Field(default="1.0.0", max_length=30)
 
 class LicenseResponse(BaseModel):
     success: bool
